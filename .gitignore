@@ -1,0 +1,55 @@
+# Binários
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+*.coverprofile
+coverage*
+
+# Go workspace
+go.work
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Code Agents
+.github
+.opencode
+.claude
+.agents
+.specify
+.specs
+
+# Agent rules
+CLAUDE.md
+
+# Docs
+docs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# SQLite local data files
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
