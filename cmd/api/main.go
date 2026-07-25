@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/opinedajr/micro-investing/internal/di"
+	"github.com/opinedajr/micro-investing/internal/healthcheck"
 )
 
 func main() {
@@ -12,7 +13,8 @@ func main() {
 	port := container.Config().Server.Port
 	r := gin.Default()
 
-	r.GET("/health", container.HealthCheckHandler().Handle)
+	v1 := r.Group("/api/v1")
+	healthcheck.RegisterRoutes(v1, container.HealthCheckHandler())
 
 	log.Fatal(r.Run(":" + port))
 }
