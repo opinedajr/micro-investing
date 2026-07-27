@@ -10,19 +10,19 @@ import (
 )
 
 type Handler struct {
-	service Service
+	service   Service
 	validator *validator.Validate
 }
 
 func NewHandler(service Service) *Handler {
 	return &Handler{
-		service: service,
+		service:   service,
 		validator: validator.New(),
 	}
 }
 
 type CreateWalletRequest struct {
-	Name        string `json:"name" binding:"required,min=3,max=50"`
+	Name        string  `json:"name" binding:"required,min=3,max=50"`
 	Description *string `json:"description" binding:"omitempty,max=255"`
 }
 

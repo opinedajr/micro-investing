@@ -14,32 +14,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type mockService struct {
-	createFunc func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error)
-}
-
-func (m *mockService) Create(ctx context.Context, input CreateWalletInput) (*WalletOutput, error) {
-	if m.createFunc != nil {
-		return m.createFunc(ctx, input)
-	}
-	return nil, errors.New("not implemented")
-}
-
 func TestHandler_Create(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("success - creates wallet with valid input", func(t *testing.T) {
-		mockSvc := &mockService{
-			createFunc: func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error) {
-				return &WalletOutput{
-					ID:          "wallet-id",
-					Name:        input.Name,
-					Description: input.Description,
-					CreatedAt:   "2026-07-25T12:00:00Z",
-					UpdatedAt:   "2026-07-25T12:00:00Z",
-				}, nil
-			},
-		}
+		mockSvc := newMockService(func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error) {
+			return &WalletOutput{
+				ID:          "wallet-id",
+				Name:        input.Name,
+				Description: input.Description,
+				CreatedAt:   "2026-07-25T12:00:00Z",
+				UpdatedAt:   "2026-07-25T12:00:00Z",
+			}, nil
+		})
 
 		handler := NewHandler(mockSvc)
 
@@ -66,7 +53,7 @@ func TestHandler_Create(t *testing.T) {
 	})
 
 	t.Run("error - returns 422 for invalid input", func(t *testing.T) {
-		mockSvc := &mockService{}
+		mockSvc := newMockService(nil)
 		handler := NewHandler(mockSvc)
 
 		body := map[string]interface{}{
@@ -91,11 +78,9 @@ func TestHandler_Create(t *testing.T) {
 	})
 
 	t.Run("error - returns 409 when name already exists", func(t *testing.T) {
-		mockSvc := &mockService{
-			createFunc: func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error) {
-				return nil, ErrWalletNameAlreadyExists
-			},
-		}
+		mockSvc := newMockService(func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error) {
+			return nil, ErrWalletNameAlreadyExists
+		})
 
 		handler := NewHandler(mockSvc)
 
@@ -120,11 +105,9 @@ func TestHandler_Create(t *testing.T) {
 	})
 
 	t.Run("error - returns 500 for internal server error", func(t *testing.T) {
-		mockSvc := &mockService{
-			createFunc: func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error) {
-				return nil, errors.New("database connection failed")
-			},
-		}
+		mockSvc := newMockService(func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error) {
+			return nil, errors.New("database connection failed")
+		})
 
 		handler := NewHandler(mockSvc)
 

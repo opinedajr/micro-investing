@@ -10,6 +10,6 @@ type WalletOutput struct {
 	ID          string
 	Name        string
 	Description *string
-	CreatedAt    string
-	UpdatedAt    string
+	CreatedAt   string
+	UpdatedAt   string
 }
