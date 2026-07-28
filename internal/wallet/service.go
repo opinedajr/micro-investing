@@ -10,6 +10,8 @@ import (
 
 type Service interface {
 	Create(ctx context.Context, input CreateWalletInput) (*WalletOutput, error)
+	List(ctx context.Context, userID string) ([]WalletOutput, error)
+	Find(ctx context.Context, id string) (*WalletOutput, error)
 }
 
 type walletService struct {
@@ -36,6 +38,40 @@ func (s *walletService) Create(ctx context.Context, input CreateWalletInput) (*W
 	}
 
 	if err := s.repo.Create(ctx, wallet); err != nil {
+		return nil, err
+	}
+
+	return &WalletOutput{
+		ID:          wallet.ID,
+		Name:        wallet.Name,
+		Description: wallet.Description,
+		CreatedAt:   wallet.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   wallet.UpdatedAt.Format(time.RFC3339),
+	}, nil
+}
+
+func (s *walletService) List(ctx context.Context, userID string) ([]WalletOutput, error) {
+	wallets, err := s.repo.FindAllByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	outputs := make([]WalletOutput, len(wallets))
+	for i, wallet := range wallets {
+		outputs[i] = WalletOutput{
+			ID:          wallet.ID,
+			Name:        wallet.Name,
+			Description: wallet.Description,
+			CreatedAt:   wallet.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:   wallet.UpdatedAt.Format(time.RFC3339),
+		}
+	}
+	return outputs, nil
+}
+
+func (s *walletService) Find(ctx context.Context, id string) (*WalletOutput, error) {
+	wallet, err := s.repo.FindByID(ctx, id)
+	if err != nil {
 		return nil, err
 	}
 
