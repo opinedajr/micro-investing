@@ -21,14 +21,19 @@ func NewHandler(service Service) *Handler {
 	}
 }
 
-type CreateWalletRequest struct {
-	Name        string  `json:"name" binding:"required,min=3,max=50"`
-	Description *string `json:"description" binding:"omitempty,max=255"`
-}
-
 func (h *Handler) Create(c *gin.Context) {
-	var req CreateWalletRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var input CreateWalletInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "Invalid JSON format",
+			},
+		})
+		return
+	}
+
+	if err := h.validator.Struct(&input); err != nil {
 		var details map[string][]string
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
 			details = make(map[string][]string)
@@ -49,11 +54,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	input := CreateWalletInput{
-		UserID:      shared.DefaultUserID,
-		Name:        req.Name,
-		Description: req.Description,
-	}
+	input.UserID = shared.DefaultUserID
 
 	output, err := h.service.Create(c.Request.Context(), input)
 	if err != nil {
