@@ -10,6 +10,7 @@ import (
 	"github.com/opinedajr/micro-investing/internal/infrastructure/database"
 	"github.com/opinedajr/micro-investing/internal/shared/config"
 	sloglogger "github.com/opinedajr/micro-investing/internal/shared/logger"
+	"github.com/opinedajr/micro-investing/internal/wallet"
 )
 
 type Container struct {
@@ -22,14 +23,18 @@ type Container struct {
 	handlers     *HandlerDependencies
 }
 
-type RepositoryDependencies struct{}
+type RepositoryDependencies struct {
+	walletRepository wallet.Repository
+}
 
 type HandlerDependencies struct {
 	healthcheckHandler *healthcheck.Handler
+	walletHandler      *wallet.Handler
 }
 
 type ServiceDependencies struct {
 	healthcheckService *healthcheck.Service
+	walletService      wallet.Service
 }
 
 func NewContainer() *Container {
@@ -99,4 +104,25 @@ func (c *Container) HealthCheckHandler() *healthcheck.Handler {
 		c.handlers.healthcheckHandler = healthcheck.NewHandler(c.HealthCheckService())
 	}
 	return c.handlers.healthcheckHandler
+}
+
+func (c *Container) WalletRepository() wallet.Repository {
+	if c.repositories.walletRepository == nil {
+		c.repositories.walletRepository = wallet.NewSQLiteRepository(c.DB())
+	}
+	return c.repositories.walletRepository
+}
+
+func (c *Container) WalletService() wallet.Service {
+	if c.services.walletService == nil {
+		c.services.walletService = wallet.NewService(c.WalletRepository())
+	}
+	return c.services.walletService
+}
+
+func (c *Container) WalletHandler() *wallet.Handler {
+	if c.handlers.walletHandler == nil {
+		c.handlers.walletHandler = wallet.NewHandler(c.WalletService())
+	}
+	return c.handlers.walletHandler
 }
