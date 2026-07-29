@@ -82,6 +82,43 @@ func (h *Handler) Create(c *gin.Context) {
 	})
 }
 
+func (h *Handler) List(c *gin.Context) {
+	outputs, err := h.service.List(c.Request.Context(), shared.DefaultUserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "INTERNAL_ERROR",
+				Message: "Internal server error",
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, api.Response[[]WalletOutput]{
+		Data: outputs,
+		Meta: nil,
+	})
+}
+
+func (h *Handler) Find(c *gin.Context) {
+	id := c.Param("id")
+
+	output, err := h.service.Find(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "WALLET_NOT_FOUND",
+				Message: "Wallet not found",
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, api.Response[*WalletOutput]{
+		Data: output,
+	})
+}
+
 func getValidationMessage(e validator.FieldError) string {
 	switch e.Tag() {
 	case "required":

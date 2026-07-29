@@ -131,3 +131,125 @@ func TestHandler_Create(t *testing.T) {
 		assert.Equal(t, "INTERNAL_ERROR", response.Error.Code)
 	})
 }
+
+func TestHandler_List(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("success - lists all wallets", func(t *testing.T) {
+		mockSvc := newMockServiceWithListAndFind(
+			func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error) {
+				return nil, nil
+			},
+			func(ctx context.Context, userID string) ([]WalletOutput, error) {
+				desc1 := "Ações"
+				desc2 := "FIIs"
+				return []WalletOutput{
+					{
+						ID:          "wallet-1",
+						Name:        "Carteira Ações",
+						Description: &desc1,
+						CreatedAt:   "2026-07-25T10:00:00Z",
+						UpdatedAt:   "2026-07-25T10:00:00Z",
+					},
+					{
+						ID:          "wallet-2",
+						Name:        "Carteira FIIs",
+						Description: &desc2,
+						CreatedAt:   "2026-07-25T11:00:00Z",
+						UpdatedAt:   "2026-07-25T11:00:00Z",
+					},
+				}, nil
+			},
+			nil,
+		)
+
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("GET", "/api/v1/wallets", nil)
+
+		handler.List(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response api.Response[[]WalletOutput]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Len(t, response.Data, 2)
+		assert.Equal(t, "wallet-1", response.Data[0].ID)
+		assert.Equal(t, "Carteira Ações", response.Data[0].Name)
+		assert.Equal(t, "Ações", *response.Data[0].Description)
+		assert.Nil(t, response.Meta)
+	})
+}
+
+func TestHandler_Find(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("success - finds wallet by id", func(t *testing.T) {
+		desc := "Minha Carteira de Ações"
+		mockSvc := newMockServiceWithListAndFind(
+			func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error) {
+				return nil, nil
+			},
+			nil,
+			func(ctx context.Context, id string) (*WalletOutput, error) {
+				return &WalletOutput{
+					ID:          "wallet-123",
+					Name:        "Carteira Principal",
+					Description: &desc,
+					CreatedAt:   "2026-07-25T12:00:00Z",
+					UpdatedAt:   "2026-07-25T12:00:00Z",
+				}, nil
+			},
+		)
+
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("GET", "/api/v1/wallets/wallet-123", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-123"}}
+
+		handler.Find(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response api.Response[*WalletOutput]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "wallet-123", response.Data.ID)
+		assert.Equal(t, "Carteira Principal", response.Data.Name)
+		assert.Equal(t, "Minha Carteira de Ações", *response.Data.Description)
+	})
+
+	t.Run("error - returns 404 for non-existent wallet", func(t *testing.T) {
+		mockSvc := newMockServiceWithListAndFind(
+			func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error) {
+				return nil, nil
+			},
+			nil,
+			func(ctx context.Context, id string) (*WalletOutput, error) {
+				return nil, errors.New("not found")
+			},
+		)
+
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("GET", "/api/v1/wallets/non-existent", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "non-existent"}}
+
+		handler.Find(c)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.NotNil(t, response.Error)
+		assert.Equal(t, "WALLET_NOT_FOUND", response.Error.Code)
+	})
+}
