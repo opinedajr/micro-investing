@@ -7,4 +7,5 @@ func RegisterRoutes(rg *gin.RouterGroup, h *Handler) {
 	wallets.POST("", h.Create)
 	wallets.GET("", h.List)
 	wallets.GET("/:id", h.Find)
+	wallets.PUT("/:id", h.Update)
 }

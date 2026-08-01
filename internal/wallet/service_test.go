@@ -17,6 +17,7 @@ type mockRepository struct {
 	findByNameAndUserID func(ctx context.Context, name string, userID string) (*Wallet, error)
 	findByIDFunc        func(ctx context.Context, id string) (*Wallet, error)
 	findAllByUserIDFunc func(ctx context.Context, userID string) ([]Wallet, error)
+	updateFunc          func(ctx context.Context, wallet *Wallet) error
 }
 
 func (m *mockRepository) Create(ctx context.Context, wallet *Wallet) error {
@@ -48,6 +49,9 @@ func (m *mockRepository) FindByNameAndUserID(ctx context.Context, name string, u
 }
 
 func (m *mockRepository) Update(ctx context.Context, wallet *Wallet) error {
+	if m.updateFunc != nil {
+		return m.updateFunc(ctx, wallet)
+	}
 	return nil
 }
 
@@ -197,5 +201,107 @@ func TestService_Find(t *testing.T) {
 		_, err := service.Find(context.Background(), "non-existent")
 		assert.Error(t, err)
 		assert.Equal(t, gorm.ErrRecordNotFound, err)
+	})
+}
+
+func TestService_Update(t *testing.T) {
+	t.Run("success - updates wallet", func(t *testing.T) {
+		now := time.Now()
+		existingWallet := &Wallet{
+			ID:          "wallet-123",
+			UserID:      shared.DefaultUserID,
+			Name:        "Nome Antigo",
+			Description: ptrStr("Descrição Antiga"),
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+
+		mockRepo := &mockRepository{
+			findByIDFunc: func(ctx context.Context, id string) (*Wallet, error) {
+				return existingWallet, nil
+			},
+			findByNameAndUserID: func(ctx context.Context, name string, userID string) (*Wallet, error) {
+				if name == "Nome Já Existe" {
+					return &Wallet{
+						ID:     "other-wallet",
+						UserID: userID,
+						Name:   "Nome Já Existe",
+					}, nil
+				}
+				return nil, gorm.ErrRecordNotFound
+			},
+			updateFunc: func(ctx context.Context, wallet *Wallet) error {
+				existingWallet.Name = wallet.Name
+				existingWallet.Description = wallet.Description
+				existingWallet.UpdatedAt = time.Now()
+				return nil
+			},
+		}
+
+		service := NewService(mockRepo)
+
+		newDesc := "Nova Descrição"
+		input := UpdateWalletInput{
+			Name:        "Nome Novo",
+			Description: &newDesc,
+		}
+
+		output, err := service.Update(context.Background(), "wallet-123", input)
+		assert.NoError(t, err)
+		assert.Equal(t, "wallet-123", output.ID)
+		assert.Equal(t, "Nome Novo", output.Name)
+		assert.Equal(t, "Nova Descrição", *output.Description)
+	})
+
+	t.Run("error - returns error when wallet not found", func(t *testing.T) {
+		mockRepo := &mockRepository{
+			findByIDFunc: func(ctx context.Context, id string) (*Wallet, error) {
+				return nil, gorm.ErrRecordNotFound
+			},
+		}
+
+		service := NewService(mockRepo)
+
+		input := UpdateWalletInput{
+			Name:        "Nome",
+			Description: ptrStr("Descrição"),
+		}
+
+		_, err := service.Update(context.Background(), "non-existent", input)
+		assert.Error(t, err)
+	})
+
+	t.Run("error - returns error when updating to existing name", func(t *testing.T) {
+		existingWallet := &Wallet{
+			ID:     "wallet-123",
+			UserID: shared.DefaultUserID,
+			Name:   "Nome Original",
+		}
+
+		mockRepo := &mockRepository{
+			findByIDFunc: func(ctx context.Context, id string) (*Wallet, error) {
+				return existingWallet, nil
+			},
+			findByNameAndUserID: func(ctx context.Context, name string, userID string) (*Wallet, error) {
+				if name == "Nome Já Existe" {
+					return &Wallet{
+						ID:     "other-wallet",
+						UserID: userID,
+						Name:   "Nome Já Existe",
+					}, nil
+				}
+				return nil, gorm.ErrRecordNotFound
+			},
+		}
+
+		service := NewService(mockRepo)
+
+		input := UpdateWalletInput{
+			Name: "Nome Já Existe",
+		}
+
+		_, err := service.Update(context.Background(), "wallet-123", input)
+		assert.Error(t, err)
+		assert.Equal(t, ErrWalletNameAlreadyExists, err)
 	})
 }

@@ -119,6 +119,66 @@ func (h *Handler) Find(c *gin.Context) {
 	})
 }
 
+func (h *Handler) Update(c *gin.Context) {
+	var input UpdateWalletInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "Invalid JSON format",
+			},
+		})
+		return
+	}
+
+	if err := h.validator.Struct(&input); err != nil {
+		var details map[string][]string
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			details = make(map[string][]string)
+			for _, e := range validationErrors {
+				field := e.Field()
+				msg := getValidationMessage(e)
+				details[field] = append(details[field], msg)
+			}
+		}
+
+		c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "Validation failed",
+				Details: details,
+			},
+		})
+		return
+	}
+
+	id := c.Param("id")
+	output, err := h.service.Update(c.Request.Context(), id, input)
+	if err != nil {
+		if err == ErrWalletNameAlreadyExists {
+			c.JSON(http.StatusConflict, api.Response[interface{}]{
+				Error: &api.APIError{
+					Code:    "WALLET_NAME_ALREADY_EXISTS",
+					Message: "Wallet name already exists",
+				},
+			})
+			return
+		}
+
+		c.JSON(http.StatusNotFound, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "WALLET_NOT_FOUND",
+				Message: "Wallet not found",
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, api.Response[*WalletOutput]{
+		Data: output,
+	})
+}
+
 func getValidationMessage(e validator.FieldError) string {
 	switch e.Tag() {
 	case "required":

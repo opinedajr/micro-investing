@@ -6,6 +6,11 @@ type CreateWalletInput struct {
 	Description *string `json:"description" validate:"omitempty,max=255"`
 }
 
+type UpdateWalletInput struct {
+	Name        string  `json:"name" validate:"required,min=3,max=50"`
+	Description *string `json:"description" validate:"omitempty,max=255"`
+}
+
 type WalletOutput struct {
 	ID          string  `json:"id"`
 	Name        string  `json:"name"`
