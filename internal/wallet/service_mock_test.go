@@ -9,6 +9,7 @@ type mockService struct {
 	createFunc func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error)
 	listFunc   func(ctx context.Context, userID string) ([]WalletOutput, error)
 	findFunc   func(ctx context.Context, id string) (*WalletOutput, error)
+	updateFunc func(ctx context.Context, id string, input UpdateWalletInput) (*WalletOutput, error)
 }
 
 func (m *mockService) Create(ctx context.Context, input CreateWalletInput) (*WalletOutput, error) {
@@ -32,6 +33,13 @@ func (m *mockService) Find(ctx context.Context, id string) (*WalletOutput, error
 	return nil, errors.New("not implemented")
 }
 
+func (m *mockService) Update(ctx context.Context, id string, input UpdateWalletInput) (*WalletOutput, error) {
+	if m.updateFunc != nil {
+		return m.updateFunc(ctx, id, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
 func newMockService(createFunc func(ctx context.Context, input CreateWalletInput) (*WalletOutput, error)) Service {
 	return &mockService{createFunc: createFunc}
 }
@@ -46,4 +54,10 @@ func newMockServiceWithListAndFind(
 		listFunc:   listFunc,
 		findFunc:   findFunc,
 	}
+}
+
+func newMockServiceWithUpdate(
+	updateFunc func(ctx context.Context, id string, input UpdateWalletInput) (*WalletOutput, error),
+) Service {
+	return &mockService{updateFunc: updateFunc}
 }

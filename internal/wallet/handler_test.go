@@ -253,3 +253,135 @@ func TestHandler_Find(t *testing.T) {
 		assert.Equal(t, "WALLET_NOT_FOUND", response.Error.Code)
 	})
 }
+
+func TestHandler_Update(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("success - updates wallet", func(t *testing.T) {
+		newDesc := "Descrição Atualizada"
+		mockSvc := newMockServiceWithUpdate(
+			func(ctx context.Context, id string, input UpdateWalletInput) (*WalletOutput, error) {
+				return &WalletOutput{
+					ID:          id,
+					Name:        input.Name,
+					Description: input.Description,
+					CreatedAt:   "2026-07-25T10:00:00Z",
+					UpdatedAt:   "2026-07-25T14:00:00Z",
+				}, nil
+			},
+		)
+
+		handler := NewHandler(mockSvc)
+
+		body := map[string]interface{}{
+			"name":        "Nome Atualizado",
+			"description": newDesc,
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-123", bytes.NewBuffer(jsonBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-123"}}
+
+		handler.Update(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response api.Response[*WalletOutput]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "wallet-123", response.Data.ID)
+		assert.Equal(t, "Nome Atualizado", response.Data.Name)
+		assert.Equal(t, "Descrição Atualizada", *response.Data.Description)
+	})
+
+	t.Run("error - returns 422 for invalid update input", func(t *testing.T) {
+		mockSvc := newMockServiceWithUpdate(nil)
+		handler := NewHandler(mockSvc)
+
+		body := map[string]interface{}{
+			"name": "AB",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-123", bytes.NewBuffer(jsonBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-123"}}
+
+		handler.Update(c)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.NotNil(t, response.Error)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns 404 when wallet not found", func(t *testing.T) {
+		mockSvc := newMockServiceWithUpdate(
+			func(ctx context.Context, id string, input UpdateWalletInput) (*WalletOutput, error) {
+				return nil, errors.New("not found")
+			},
+		)
+
+		handler := NewHandler(mockSvc)
+
+		body := map[string]interface{}{
+			"name": "Nome",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-123", bytes.NewBuffer(jsonBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-123"}}
+
+		handler.Update(c)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.NotNil(t, response.Error)
+		assert.Equal(t, "WALLET_NOT_FOUND", response.Error.Code)
+	})
+
+	t.Run("error - returns 409 when name already exists", func(t *testing.T) {
+		mockSvc := newMockServiceWithUpdate(
+			func(ctx context.Context, id string, input UpdateWalletInput) (*WalletOutput, error) {
+				return nil, ErrWalletNameAlreadyExists
+			},
+		)
+
+		handler := NewHandler(mockSvc)
+
+		body := map[string]interface{}{
+			"name": "Duplicada",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-123", bytes.NewBuffer(jsonBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-123"}}
+
+		handler.Update(c)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.NotNil(t, response.Error)
+		assert.Equal(t, "WALLET_NAME_ALREADY_EXISTS", response.Error.Code)
+	})
+}
