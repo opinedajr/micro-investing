@@ -54,5 +54,11 @@ func (r *SQLiteRepository) Update(ctx context.Context, wallet *Wallet) error {
 }
 
 func (r *SQLiteRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&Wallet{}, "id = ?", id).Error
+	var wallet Wallet
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&wallet).Error
+	if err != nil {
+		return err
+	}
+
+	return r.db.WithContext(ctx).Delete(&wallet).Error
 }

@@ -179,6 +179,23 @@ func (h *Handler) Update(c *gin.Context) {
 	})
 }
 
+func (h *Handler) Delete(c *gin.Context) {
+	id := c.Param("id")
+
+	err := h.service.Delete(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "WALLET_NOT_FOUND",
+				Message: "Wallet not found",
+			},
+		})
+		return
+	}
+
+	c.AbortWithStatus(http.StatusNoContent)
+}
+
 func getValidationMessage(e validator.FieldError) string {
 	switch e.Tag() {
 	case "required":

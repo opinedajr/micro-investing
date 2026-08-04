@@ -13,6 +13,7 @@ type Service interface {
 	List(ctx context.Context, userID string) ([]WalletOutput, error)
 	Find(ctx context.Context, id string) (*WalletOutput, error)
 	Update(ctx context.Context, id string, input UpdateWalletInput) (*WalletOutput, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type walletService struct {
@@ -115,4 +116,12 @@ func (s *walletService) Update(ctx context.Context, id string, input UpdateWalle
 		CreatedAt:   wallet.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   wallet.UpdatedAt.Format(time.RFC3339),
 	}, nil
+}
+
+func (s *walletService) Delete(ctx context.Context, id string) error {
+	err := s.repo.Delete(ctx, id)
+	if err != nil {
+		return err
+	}
+	return nil
 }

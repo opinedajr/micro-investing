@@ -90,6 +90,39 @@ func TestSQLiteRepository_Create(t *testing.T) {
 		_, err = repo.FindByID(context.Background(), "non-existent-id")
 		assert.Error(t, err)
 	})
+
+	t.Run("success - deletes wallet", func(t *testing.T) {
+		gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
+		require.NoError(t, err)
+
+		err = gormDB.AutoMigrate(&Wallet{})
+		require.NoError(t, err)
+
+		repo := NewSQLiteRepository(gormDB)
+
+		wallet := &Wallet{UserID: shared.DefaultUserID, Name: "To Delete", Description: ptr("Will be deleted")}
+		err = repo.Create(context.Background(), wallet)
+		require.NoError(t, err)
+
+		err = repo.Delete(context.Background(), wallet.ID)
+		assert.NoError(t, err)
+
+		_, err = repo.FindByID(context.Background(), wallet.ID)
+		assert.Error(t, err)
+	})
+
+	t.Run("error - delete non-existent wallet returns error", func(t *testing.T) {
+		gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
+		require.NoError(t, err)
+
+		err = gormDB.AutoMigrate(&Wallet{})
+		require.NoError(t, err)
+
+		repo := NewSQLiteRepository(gormDB)
+
+		err = repo.Delete(context.Background(), "non-existent-id")
+		assert.Error(t, err)
+	})
 }
 
 func ptr(s string) *string {

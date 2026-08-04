@@ -18,6 +18,7 @@ type mockRepository struct {
 	findByIDFunc        func(ctx context.Context, id string) (*Wallet, error)
 	findAllByUserIDFunc func(ctx context.Context, userID string) ([]Wallet, error)
 	updateFunc          func(ctx context.Context, wallet *Wallet) error
+	deleteFunc          func(ctx context.Context, id string) error
 }
 
 func (m *mockRepository) Create(ctx context.Context, wallet *Wallet) error {
@@ -56,6 +57,9 @@ func (m *mockRepository) Update(ctx context.Context, wallet *Wallet) error {
 }
 
 func (m *mockRepository) Delete(ctx context.Context, id string) error {
+	if m.deleteFunc != nil {
+		return m.deleteFunc(ctx, id)
+	}
 	return nil
 }
 
@@ -303,5 +307,34 @@ func TestService_Update(t *testing.T) {
 		_, err := service.Update(context.Background(), "wallet-123", input)
 		assert.Error(t, err)
 		assert.Equal(t, ErrWalletNameAlreadyExists, err)
+	})
+}
+
+func TestService_Delete(t *testing.T) {
+	t.Run("success - deletes wallet", func(t *testing.T) {
+		mockRepo := &mockRepository{
+			deleteFunc: func(ctx context.Context, id string) error {
+				return nil
+			},
+		}
+
+		service := NewService(mockRepo)
+
+		err := service.Delete(context.Background(), "wallet-123")
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - returns error when deleting non-existent wallet", func(t *testing.T) {
+		mockRepo := &mockRepository{
+			deleteFunc: func(ctx context.Context, id string) error {
+				return gorm.ErrRecordNotFound
+			},
+		}
+
+		service := NewService(mockRepo)
+
+		err := service.Delete(context.Background(), "non-existent")
+		assert.Error(t, err)
+		assert.Equal(t, gorm.ErrRecordNotFound, err)
 	})
 }
