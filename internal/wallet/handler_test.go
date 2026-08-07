@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/opinedajr/micro-investing/internal/shared/api"
 	"github.com/stretchr/testify/assert"
+	"gorm.io/gorm"
 )
 
 func TestHandler_Create(t *testing.T) {
@@ -412,7 +413,7 @@ func TestHandler_Delete(t *testing.T) {
 	t.Run("error - returns 404 when wallet not found", func(t *testing.T) {
 		mockSvc := newMockServiceWithDelete(
 			func(ctx context.Context, id string) error {
-				return errors.New("not found")
+				return gorm.ErrRecordNotFound
 			},
 		)
 
@@ -432,5 +433,30 @@ func TestHandler_Delete(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, response.Error)
 		assert.Equal(t, "WALLET_NOT_FOUND", response.Error.Code)
+	})
+
+	t.Run("error - returns 500 for internal server error", func(t *testing.T) {
+		mockSvc := newMockServiceWithDelete(
+			func(ctx context.Context, id string) error {
+				return errors.New("database connection failed")
+			},
+		)
+
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("DELETE", "/api/v1/wallets/wallet-123", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-123"}}
+
+		handler.Delete(c)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.NotNil(t, response.Error)
+		assert.Equal(t, "INTERNAL_ERROR", response.Error.Code)
 	})
 }
