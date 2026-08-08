@@ -7,6 +7,7 @@
 
 # Test binary
 *.test
+bin/
 
 # Output of go coverage
 *.out

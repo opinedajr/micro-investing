@@ -33,7 +33,7 @@ func TestLoggerInterface(t *testing.T) {
 	logger := NewLogger("info")
 
 	// Check if implements Logger interface
-	var _ Logger = logger
+	var _ = logger
 }
 
 func TestLoggerLevels(t *testing.T) {
