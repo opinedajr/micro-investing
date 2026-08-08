@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/opinedajr/micro-investing/internal/shared/api"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
 )
 
 func TestHandler_Create(t *testing.T) {
@@ -413,7 +412,7 @@ func TestHandler_Delete(t *testing.T) {
 	t.Run("error - returns 404 when wallet not found", func(t *testing.T) {
 		mockSvc := newMockServiceWithDelete(
 			func(ctx context.Context, id string) error {
-				return gorm.ErrRecordNotFound
+				return ErrWalletNotFound
 			},
 		)
 

@@ -8,7 +8,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/opinedajr/micro-investing/internal/shared"
 	"github.com/opinedajr/micro-investing/internal/shared/api"
-	"gorm.io/gorm"
 )
 
 type Handler struct {
@@ -186,7 +185,7 @@ func (h *Handler) Delete(c *gin.Context) {
 
 	err := h.service.Delete(c.Request.Context(), id)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, ErrWalletNotFound) {
 			c.JSON(http.StatusNotFound, api.Response[interface{}]{
 				Error: &api.APIError{
 					Code:    "WALLET_NOT_FOUND",
