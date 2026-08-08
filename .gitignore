@@ -37,7 +37,6 @@ CLAUDE.md
 # Docs
 docs/*
 !docs/api.md
-!docs/pr.md
 
 # OS
 .DS_Store
