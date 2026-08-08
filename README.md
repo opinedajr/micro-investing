@@ -136,7 +136,21 @@ Commands:
 - **URL**: `GET /health`
 - **Description**: Verifies if the API and its dependencies are healthy.
 
-## 📜 Available Commands
+### Wallets
+- **URL**: `GET /api/v1/wallets`
+- **URL**: `POST /api/v1/wallets`
+- **URL**: `GET /api/v1/wallets/:id`
+- **URL**: `PUT /api/v1/wallets/:id`
+- **URL**: `DELETE /api/v1/wallets/:id`
+- **Description**: Manage investment wallets.
+
+### Patrimonies
+- **URL**: `GET /api/v1/wallets/:walletId/patrimonies?type=&year=&month=`
+- **URL**: `POST /api/v1/wallets/:walletId/patrimonies`
+- **URL**: `PUT /api/v1/wallets/:walletId/patrimonies/:id`
+- **Description**: Manage manual patrimony records per wallet. All monetary values are stored as integer cents. The `type` must be one of: `stocks`, `fiis`, `fixed_income`, `emergency_reserve`, `liquid_cash`.
+
+For detailed request/response schemas see `docs/api.md`.
 
 | Command | Description |
 |---------|-------------|
