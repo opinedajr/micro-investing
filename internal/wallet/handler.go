@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -177,6 +178,32 @@ func (h *Handler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, api.Response[*WalletOutput]{
 		Data: output,
 	})
+}
+
+func (h *Handler) Delete(c *gin.Context) {
+	id := c.Param("id")
+
+	err := h.service.Delete(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, ErrWalletNotFound) {
+			c.JSON(http.StatusNotFound, api.Response[interface{}]{
+				Error: &api.APIError{
+					Code:    "WALLET_NOT_FOUND",
+					Message: "Wallet not found",
+				},
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "INTERNAL_ERROR",
+				Message: "Internal server error",
+			},
+		})
+		return
+	}
+
+	c.AbortWithStatus(http.StatusNoContent)
 }
 
 func getValidationMessage(e validator.FieldError) string {

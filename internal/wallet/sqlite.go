@@ -3,6 +3,7 @@ package wallet
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -54,5 +55,14 @@ func (r *SQLiteRepository) Update(ctx context.Context, wallet *Wallet) error {
 }
 
 func (r *SQLiteRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&Wallet{}, "id = ?", id).Error
+	var wallet Wallet
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&wallet).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("%w: %w", ErrWalletNotFound, err)
+		}
+		return err
+	}
+
+	return r.db.WithContext(ctx).Delete(&wallet).Error
 }

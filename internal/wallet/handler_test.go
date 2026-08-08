@@ -385,3 +385,77 @@ func TestHandler_Update(t *testing.T) {
 		assert.Equal(t, "WALLET_NAME_ALREADY_EXISTS", response.Error.Code)
 	})
 }
+
+func TestHandler_Delete(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("success - deletes wallet", func(t *testing.T) {
+		mockSvc := newMockServiceWithDelete(
+			func(ctx context.Context, id string) error {
+				return nil
+			},
+		)
+
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("DELETE", "/api/v1/wallets/wallet-123", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-123"}}
+
+		handler.Delete(c)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.Equal(t, 0, w.Body.Len(), "Response body should be empty for 204")
+	})
+
+	t.Run("error - returns 404 when wallet not found", func(t *testing.T) {
+		mockSvc := newMockServiceWithDelete(
+			func(ctx context.Context, id string) error {
+				return ErrWalletNotFound
+			},
+		)
+
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("DELETE", "/api/v1/wallets/wallet-123", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-123"}}
+
+		handler.Delete(c)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.NotNil(t, response.Error)
+		assert.Equal(t, "WALLET_NOT_FOUND", response.Error.Code)
+	})
+
+	t.Run("error - returns 500 for internal server error", func(t *testing.T) {
+		mockSvc := newMockServiceWithDelete(
+			func(ctx context.Context, id string) error {
+				return errors.New("database connection failed")
+			},
+		)
+
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("DELETE", "/api/v1/wallets/wallet-123", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-123"}}
+
+		handler.Delete(c)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.NotNil(t, response.Error)
+		assert.Equal(t, "INTERNAL_ERROR", response.Error.Code)
+	})
+}
