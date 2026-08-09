@@ -343,7 +343,7 @@ func TestHandler_List(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("success - lists patrimonies with filters", func(t *testing.T) {
-		mockSvc := newMockServiceWithList(func(ctx context.Context, filter PatrimonyListFilter) ([]PatrimonyOutput, error) {
+		mockSvc := newMockServiceWithList(func(ctx context.Context, filter PatrimonyFilter) ([]PatrimonyOutput, error) {
 			return []PatrimonyOutput{
 				{
 					ID:        "patrimony-1",
@@ -376,7 +376,7 @@ func TestHandler_List(t *testing.T) {
 	})
 
 	t.Run("error - returns 500 for internal server error", func(t *testing.T) {
-		mockSvc := newMockServiceWithList(func(ctx context.Context, filter PatrimonyListFilter) ([]PatrimonyOutput, error) {
+		mockSvc := newMockServiceWithList(func(ctx context.Context, filter PatrimonyFilter) ([]PatrimonyOutput, error) {
 			return nil, errors.New("database error")
 		})
 		handler := NewHandler(mockSvc)

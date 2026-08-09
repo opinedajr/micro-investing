@@ -8,7 +8,7 @@ import (
 type mockService struct {
 	createFunc func(ctx context.Context, input CreatePatrimonyInput) (*PatrimonyOutput, error)
 	updateFunc func(ctx context.Context, id string, input UpdatePatrimonyInput) (*PatrimonyOutput, error)
-	listFunc   func(ctx context.Context, filter PatrimonyListFilter) ([]PatrimonyOutput, error)
+	listFunc   func(ctx context.Context, filter PatrimonyFilter) ([]PatrimonyOutput, error)
 }
 
 func (m *mockService) Create(ctx context.Context, input CreatePatrimonyInput) (*PatrimonyOutput, error) {
@@ -25,7 +25,7 @@ func (m *mockService) Update(ctx context.Context, id string, input UpdatePatrimo
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockService) List(ctx context.Context, filter PatrimonyListFilter) ([]PatrimonyOutput, error) {
+func (m *mockService) List(ctx context.Context, filter PatrimonyFilter) ([]PatrimonyOutput, error) {
 	if m.listFunc != nil {
 		return m.listFunc(ctx, filter)
 	}
@@ -40,6 +40,6 @@ func newMockServiceWithUpdate(updateFunc func(ctx context.Context, id string, in
 	return &mockService{updateFunc: updateFunc}
 }
 
-func newMockServiceWithList(listFunc func(ctx context.Context, filter PatrimonyListFilter) ([]PatrimonyOutput, error)) Service {
+func newMockServiceWithList(listFunc func(ctx context.Context, filter PatrimonyFilter) ([]PatrimonyOutput, error)) Service {
 	return &mockService{listFunc: listFunc}
 }

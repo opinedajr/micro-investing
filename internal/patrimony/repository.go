@@ -2,13 +2,6 @@ package patrimony
 
 import "context"
 
-type PatrimonyFilter struct {
-	WalletID string
-	Type     AssetType
-	Year     int
-	Month    int
-}
-
 type PatrimonyRepository interface {
 	Create(ctx context.Context, patrimony *Patrimony) error
 	Update(ctx context.Context, patrimony *Patrimony) error

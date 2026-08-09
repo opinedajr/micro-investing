@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type Service interface {
 	Create(ctx context.Context, input CreatePatrimonyInput) (*PatrimonyOutput, error)
 	Update(ctx context.Context, id string, input UpdatePatrimonyInput) (*PatrimonyOutput, error)
-	List(ctx context.Context, filter PatrimonyListFilter) ([]PatrimonyOutput, error)
+	List(ctx context.Context, filter PatrimonyFilter) ([]PatrimonyOutput, error)
 }
 
 type patrimonyService struct {
@@ -31,7 +29,7 @@ func (s *patrimonyService) Create(ctx context.Context, input CreatePatrimonyInpu
 	if err == nil && existing != nil {
 		return nil, ErrPatrimonyAlreadyExists
 	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) && err != nil {
+	if !errors.Is(err, ErrPatrimonyNotFound) {
 		return nil, err
 	}
 
@@ -69,7 +67,7 @@ func (s *patrimonyService) Update(ctx context.Context, id string, input UpdatePa
 		if err == nil && existing != nil && existing.ID != id {
 			return nil, ErrPatrimonyAlreadyExists
 		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) && err != nil {
+		if !errors.Is(err, ErrPatrimonyNotFound) {
 			return nil, err
 		}
 	}
@@ -86,8 +84,8 @@ func (s *patrimonyService) Update(ctx context.Context, id string, input UpdatePa
 	return toOutput(patrimony), nil
 }
 
-func (s *patrimonyService) List(ctx context.Context, filter PatrimonyListFilter) ([]PatrimonyOutput, error) {
-	patrimonies, err := s.repo.FindByFilter(ctx, PatrimonyFilter(filter))
+func (s *patrimonyService) List(ctx context.Context, filter PatrimonyFilter) ([]PatrimonyOutput, error) {
+	patrimonies, err := s.repo.FindByFilter(ctx, filter)
 	if err != nil {
 		return nil, err
 	}

@@ -96,7 +96,7 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	filter := PatrimonyListFilter{
+	filter := PatrimonyFilter{
 		WalletID: c.Param("walletId"),
 	}
 

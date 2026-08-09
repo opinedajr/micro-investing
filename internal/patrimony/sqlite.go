@@ -59,7 +59,7 @@ func (r *SQLiteRepository) FindByWalletYearMonthType(ctx context.Context, wallet
 	err := r.db.WithContext(ctx).Where("wallet_id = ? AND year = ? AND month = ? AND type = ?", walletID, year, month, assetType).First(&patrimony).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, err
+			return nil, ErrPatrimonyNotFound
 		}
 		return nil, err
 	}

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
 )
 
 func TestService_Create(t *testing.T) {
@@ -21,7 +20,7 @@ func TestService_Create(t *testing.T) {
 				return nil
 			},
 			findByWalletYearMonthTypeFn: func(ctx context.Context, walletID string, year int, month int, assetType AssetType) (*Patrimony, error) {
-				return nil, gorm.ErrRecordNotFound
+				return nil, ErrPatrimonyNotFound
 			},
 		}
 
@@ -147,7 +146,7 @@ func TestService_Create(t *testing.T) {
 				return errors.New("database error")
 			},
 			findByWalletYearMonthTypeFn: func(ctx context.Context, walletID string, year int, month int, assetType AssetType) (*Patrimony, error) {
-				return nil, gorm.ErrRecordNotFound
+				return nil, ErrPatrimonyNotFound
 			},
 		}
 
@@ -183,7 +182,7 @@ func TestService_Update(t *testing.T) {
 				return existing, nil
 			},
 			findByWalletYearMonthTypeFn: func(ctx context.Context, walletID string, year int, month int, assetType AssetType) (*Patrimony, error) {
-				return nil, gorm.ErrRecordNotFound
+				return nil, ErrPatrimonyNotFound
 			},
 			updateFunc: func(ctx context.Context, patrimony *Patrimony) error {
 				existing.Amount = patrimony.Amount
@@ -346,7 +345,7 @@ func TestService_List(t *testing.T) {
 		}
 
 		service := NewService(repo)
-		filter := PatrimonyListFilter{WalletID: "wallet-id"}
+		filter := PatrimonyFilter{WalletID: "wallet-id"}
 
 		outputs, err := service.List(context.Background(), filter)
 
@@ -366,7 +365,7 @@ func TestService_List(t *testing.T) {
 		}
 
 		service := NewService(repo)
-		filter := PatrimonyListFilter{WalletID: "wallet-id"}
+		filter := PatrimonyFilter{WalletID: "wallet-id"}
 
 		_, err := service.List(context.Background(), filter)
 

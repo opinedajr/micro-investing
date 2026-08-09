@@ -27,7 +27,7 @@ type PatrimonyOutput struct {
 	UpdatedAt string    `json:"updated_at"`
 }
 
-type PatrimonyListFilter struct {
+type PatrimonyFilter struct {
 	WalletID string
 	Type     AssetType
 	Year     int

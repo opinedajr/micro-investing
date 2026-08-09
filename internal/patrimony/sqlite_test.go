@@ -7,7 +7,6 @@ import (
 	"github.com/opinedajr/micro-investing/internal/infrastructure/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func setupSQLiteRepository(t *testing.T) *SQLiteRepository {
@@ -216,6 +215,6 @@ func TestSQLiteRepository_FindByWalletYearMonthType(t *testing.T) {
 
 		_, err := repo.FindByWalletYearMonthType(context.Background(), "wallet-id", 2026, 7, TypeStocks)
 		assert.Error(t, err)
-		assert.Equal(t, gorm.ErrRecordNotFound, err)
+		assert.ErrorIs(t, err, ErrPatrimonyNotFound)
 	})
 }
