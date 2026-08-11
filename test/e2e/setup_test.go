@@ -20,7 +20,7 @@ import (
 
 	"github.com/opinedajr/micro-investing/internal/di"
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
-	"github.com/opinedajr/micro-investing/internal/wallet"
+	"github.com/opinedajr/micro-investing/internal/shared/middleware"
 )
 
 
@@ -74,7 +74,27 @@ func (s *E2ESuite) SetupSuite() {
 	r := gin.Default()
 	v1 := r.Group("/api/v1")
 	healthcheck.RegisterRoutes(v1, s.container.HealthCheckHandler())
-	wallet.RegisterRoutes(v1, s.container.WalletHandler())
+
+	walletHandler := s.container.WalletHandler()
+	wallets := v1.Group("/wallets")
+	wallets.Use(func(c *gin.Context) {
+		if walletID := c.Param("walletId"); walletID != "" {
+			c.Params = append(c.Params, gin.Param{Key: "id", Value: walletID})
+		}
+		c.Next()
+	})
+	wallets.GET("/:walletId", walletHandler.Find)
+	wallets.PUT("/:walletId", walletHandler.Update)
+	wallets.DELETE("/:walletId", walletHandler.Delete)
+	wallets.POST("", walletHandler.Create)
+	wallets.GET("", walletHandler.List)
+
+	patrimonyHandler := s.container.PatrimonyHandler()
+	wallets.Use(middleware.WalletMiddleware(s.container.WalletService()))
+	patrimonies := wallets.Group("/:walletId/patrimonies")
+	patrimonies.GET("", patrimonyHandler.List)
+	patrimonies.POST("", patrimonyHandler.Create)
+	patrimonies.PUT("/:id", patrimonyHandler.Update)
 	
 	s.server = httptest.NewServer(r)
 
@@ -89,6 +109,8 @@ func (s *E2ESuite) TearDownSuite() {
 }
 
 func (s *E2ESuite) SetupTest() {
-	err := s.container.DB().Exec("DELETE FROM wallets;").Error
+	err := s.container.DB().Exec("DELETE FROM patrimonies;").Error
+	s.Require().NoError(err, "falha ao limpar tabela patrimonies")
+	err = s.container.DB().Exec("DELETE FROM wallets;").Error
 	s.Require().NoError(err, "falha ao limpar tabela wallets")
 }
