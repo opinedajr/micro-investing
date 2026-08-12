@@ -132,6 +132,53 @@ func (h *Handler) List(c *gin.Context) {
 	})
 }
 
+func (h *Handler) CreateAsset(c *gin.Context) {
+	var input CreateAssetInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "Invalid JSON format",
+			},
+		})
+		return
+	}
+
+	if err := h.validator.Struct(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "Validation failed",
+				Details: buildValidationDetails(err),
+			},
+		})
+		return
+	}
+
+	input.WalletID = c.Param("walletId")
+
+	output, err := h.service.CreateAsset(c.Request.Context(), input)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, api.Response[*AssetOutput]{
+		Data: output,
+	})
+}
+
+func (h *Handler) DeleteAsset(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := h.service.DeleteAsset(c.Request.Context(), id); err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 func (h *Handler) handleServiceError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrPatrimonyAlreadyExists):
@@ -148,7 +195,14 @@ func (h *Handler) handleServiceError(c *gin.Context, err error) {
 				Message: "Patrimony not found",
 			},
 		})
-	case errors.Is(err, ErrInvalidAssetType), errors.Is(err, ErrInvalidPatrimonyYear), errors.Is(err, ErrInvalidPatrimonyMonth), errors.Is(err, ErrInvalidPatrimonyAmount):
+	case errors.Is(err, ErrAssetNotFound):
+		c.JSON(http.StatusNotFound, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "ASSET_NOT_FOUND",
+				Message: "Asset not found",
+			},
+		})
+	case errors.Is(err, ErrInvalidAssetType), errors.Is(err, ErrInvalidPatrimonyYear), errors.Is(err, ErrInvalidPatrimonyMonth), errors.Is(err, ErrInvalidPatrimonyAmount), errors.Is(err, ErrInvalidAssetDate), errors.Is(err, ErrInvalidAssetDescription), errors.Is(err, ErrInvalidAssetAmount):
 		c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
 			Error: &api.APIError{
 				Code:    "VALIDATION_ERROR",
