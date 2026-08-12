@@ -9,19 +9,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupSQLiteRepository(t *testing.T) *SQLiteRepository {
+func setupSQLitePatrimonyRepository(t *testing.T) *SQLitePatrimonyRepository {
 	gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
 	require.NoError(t, err)
 
-	err = gormDB.AutoMigrate(&Patrimony{})
+	require.NoError(t, gormDB.AutoMigrate(&Patrimony{}))
+	require.NoError(t, gormDB.AutoMigrate(&Asset{}))
+
+	return NewSQLitePatrimonyRepository(gormDB)
+}
+
+func setupSQLiteAssetRepository(t *testing.T) *SQLiteAssetRepository {
+	gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
 	require.NoError(t, err)
 
-	return NewSQLiteRepository(gormDB)
+	require.NoError(t, gormDB.AutoMigrate(&Patrimony{}))
+	require.NoError(t, gormDB.AutoMigrate(&Asset{}))
+
+	return NewSQLiteAssetRepository(gormDB)
 }
 
 func TestSQLiteRepository_Create(t *testing.T) {
 	t.Run("success - creates and retrieves patrimony", func(t *testing.T) {
-		repo := setupSQLiteRepository(t)
+		repo := setupSQLitePatrimonyRepository(t)
 
 		patrimony := &Patrimony{
 			WalletID: "wallet-id",
@@ -46,7 +56,7 @@ func TestSQLiteRepository_Create(t *testing.T) {
 	})
 
 	t.Run("error - violates unique constraint", func(t *testing.T) {
-		repo := setupSQLiteRepository(t)
+		repo := setupSQLitePatrimonyRepository(t)
 
 		first := &Patrimony{
 			WalletID: "wallet-id",
@@ -72,7 +82,7 @@ func TestSQLiteRepository_Create(t *testing.T) {
 
 func TestSQLiteRepository_Update(t *testing.T) {
 	t.Run("success - updates patrimony amount", func(t *testing.T) {
-		repo := setupSQLiteRepository(t)
+		repo := setupSQLitePatrimonyRepository(t)
 
 		patrimony := &Patrimony{
 			WalletID: "wallet-id",
@@ -96,7 +106,7 @@ func TestSQLiteRepository_Update(t *testing.T) {
 
 func TestSQLiteRepository_FindByID(t *testing.T) {
 	t.Run("error - returns error for non-existent id", func(t *testing.T) {
-		repo := setupSQLiteRepository(t)
+		repo := setupSQLitePatrimonyRepository(t)
 
 		_, err := repo.FindByID(context.Background(), "non-existent-id")
 		assert.Error(t, err)
@@ -106,7 +116,7 @@ func TestSQLiteRepository_FindByID(t *testing.T) {
 
 func TestSQLiteRepository_FindByFilter(t *testing.T) {
 	t.Run("success - filters by wallet", func(t *testing.T) {
-		repo := setupSQLiteRepository(t)
+		repo := setupSQLitePatrimonyRepository(t)
 
 		require.NoError(t, repo.Create(context.Background(), &Patrimony{
 			WalletID: "wallet-a",
@@ -136,7 +146,7 @@ func TestSQLiteRepository_FindByFilter(t *testing.T) {
 	})
 
 	t.Run("success - filters by type", func(t *testing.T) {
-		repo := setupSQLiteRepository(t)
+		repo := setupSQLitePatrimonyRepository(t)
 
 		require.NoError(t, repo.Create(context.Background(), &Patrimony{
 			WalletID: "wallet-a",
@@ -163,7 +173,7 @@ func TestSQLiteRepository_FindByFilter(t *testing.T) {
 	})
 
 	t.Run("success - filters by year and month", func(t *testing.T) {
-		repo := setupSQLiteRepository(t)
+		repo := setupSQLitePatrimonyRepository(t)
 
 		require.NoError(t, repo.Create(context.Background(), &Patrimony{
 			WalletID: "wallet-a",
@@ -193,7 +203,7 @@ func TestSQLiteRepository_FindByFilter(t *testing.T) {
 
 func TestSQLiteRepository_FindByWalletYearMonthType(t *testing.T) {
 	t.Run("success - finds patrimony by unique combination", func(t *testing.T) {
-		repo := setupSQLiteRepository(t)
+		repo := setupSQLitePatrimonyRepository(t)
 
 		patrimony := &Patrimony{
 			WalletID: "wallet-id",
@@ -211,7 +221,7 @@ func TestSQLiteRepository_FindByWalletYearMonthType(t *testing.T) {
 	})
 
 	t.Run("error - returns record not found", func(t *testing.T) {
-		repo := setupSQLiteRepository(t)
+		repo := setupSQLitePatrimonyRepository(t)
 
 		_, err := repo.FindByWalletYearMonthType(context.Background(), "wallet-id", 2026, 7, TypeStocks)
 		assert.Error(t, err)

@@ -24,7 +24,7 @@ func TestService_Create(t *testing.T) {
 			},
 		}
 
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := CreatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     2026,
@@ -57,7 +57,7 @@ func TestService_Create(t *testing.T) {
 			},
 		}
 
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := CreatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     2026,
@@ -74,7 +74,7 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("error - returns error for invalid asset type", func(t *testing.T) {
 		repo := &mockPatrimonyRepository{}
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := CreatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     2026,
@@ -91,7 +91,7 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("error - returns error for invalid year", func(t *testing.T) {
 		repo := &mockPatrimonyRepository{}
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := CreatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     1999,
@@ -108,7 +108,7 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("error - returns error for invalid month", func(t *testing.T) {
 		repo := &mockPatrimonyRepository{}
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := CreatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     2026,
@@ -125,7 +125,7 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("error - returns error for negative amount", func(t *testing.T) {
 		repo := &mockPatrimonyRepository{}
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := CreatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     2026,
@@ -150,7 +150,7 @@ func TestService_Create(t *testing.T) {
 			},
 		}
 
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := CreatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     2026,
@@ -191,7 +191,7 @@ func TestService_Update(t *testing.T) {
 			},
 		}
 
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := UpdatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     2026,
@@ -214,7 +214,7 @@ func TestService_Update(t *testing.T) {
 			},
 		}
 
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := UpdatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     2026,
@@ -242,7 +242,7 @@ func TestService_Update(t *testing.T) {
 			},
 		}
 
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := UpdatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     2026,
@@ -282,7 +282,7 @@ func TestService_Update(t *testing.T) {
 			},
 		}
 
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := UpdatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     2026,
@@ -299,7 +299,7 @@ func TestService_Update(t *testing.T) {
 
 	t.Run("error - returns error for invalid input", func(t *testing.T) {
 		repo := &mockPatrimonyRepository{}
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		input := UpdatePatrimonyInput{
 			WalletID: "wallet-id",
 			Year:     2026,
@@ -344,7 +344,7 @@ func TestService_List(t *testing.T) {
 			},
 		}
 
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		filter := PatrimonyFilter{WalletID: "wallet-id"}
 
 		outputs, err := service.List(context.Background(), filter)
@@ -364,7 +364,7 @@ func TestService_List(t *testing.T) {
 			},
 		}
 
-		service := NewService(repo)
+		service := NewService(repo, &mockAssetRepository{})
 		filter := PatrimonyFilter{WalletID: "wallet-id"}
 
 		_, err := service.List(context.Background(), filter)
