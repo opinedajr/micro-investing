@@ -33,3 +33,27 @@ type PatrimonyFilter struct {
 	Year     int
 	Month    int
 }
+
+type CreateAssetInput struct {
+	WalletID    string    `json:"-"`
+	Type        AssetType `json:"type" validate:"required"`
+	Date        string    `json:"date" validate:"required"`
+	Description string    `json:"description" validate:"required"`
+	Amount      int64     `json:"amount" validate:"required"`
+}
+
+type AssetOutput struct {
+	ID          string    `json:"id"`
+	WalletID    string    `json:"wallet_id"`
+	Type        AssetType `json:"type"`
+	Date        string    `json:"date"`
+	Description string    `json:"description"`
+	Amount      int64     `json:"amount"`
+	CreatedAt   string    `json:"created_at"`
+	UpdatedAt   string    `json:"updated_at"`
+}
+
+type AssetFilter struct {
+	WalletID string
+	Type     AssetType
+}

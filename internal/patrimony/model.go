@@ -42,3 +42,21 @@ func (p *Patrimony) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+type Asset struct {
+	ID          string    `json:"id" gorm:"primaryKey"`
+	WalletID    string    `json:"wallet_id"`
+	Type        AssetType `json:"type"`
+	Date        time.Time `json:"date"`
+	Description string    `json:"description"`
+	Amount      int64     `json:"amount"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func (a *Asset) BeforeCreate(tx *gorm.DB) error {
+	if a.ID == "" {
+		a.ID = uuid.New().String()
+	}
+	return nil
+}
