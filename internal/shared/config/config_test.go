@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoad_Success(t *testing.T) {
@@ -80,10 +81,10 @@ func TestLoad_Success(t *testing.T) {
 	t.Run("success - loads with sqlite driver using only DB_NAME as file path", func(t *testing.T) {
 		t.Setenv("DB_DRIVER", "sqlite")
 		t.Setenv("DB_NAME", "data/app.db")
-		os.Unsetenv("DB_HOST")
-		os.Unsetenv("DB_PORT")
-		os.Unsetenv("DB_USER")
-		os.Unsetenv("DB_PASSWORD")
+		require.NoError(t, os.Unsetenv("DB_HOST"))
+		require.NoError(t, os.Unsetenv("DB_PORT"))
+		require.NoError(t, os.Unsetenv("DB_USER"))
+		require.NoError(t, os.Unsetenv("DB_PASSWORD"))
 
 		cfg, err := Load()
 
@@ -159,10 +160,10 @@ func TestLoad_Errors(t *testing.T) {
 
 	for _, tt := range nonSqliteCases {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Unsetenv("DB_DRIVER")
+			require.NoError(t, os.Unsetenv("DB_DRIVER"))
 
 			for _, v := range tt.missingVars {
-				os.Unsetenv(v)
+				require.NoError(t, os.Unsetenv(v))
 			}
 
 			for k, v := range tt.setupVars {
@@ -177,12 +178,12 @@ func TestLoad_Errors(t *testing.T) {
 	}
 
 	t.Run("error - sqlite driver with empty DB_NAME", func(t *testing.T) {
-		os.Unsetenv("DB_NAME")
+		require.NoError(t, os.Unsetenv("DB_NAME"))
 		t.Setenv("DB_DRIVER", "sqlite")
-		os.Unsetenv("DB_HOST")
-		os.Unsetenv("DB_PORT")
-		os.Unsetenv("DB_USER")
-		os.Unsetenv("DB_PASSWORD")
+		require.NoError(t, os.Unsetenv("DB_HOST"))
+		require.NoError(t, os.Unsetenv("DB_PORT"))
+		require.NoError(t, os.Unsetenv("DB_USER"))
+		require.NoError(t, os.Unsetenv("DB_PASSWORD"))
 
 		cfg, err := Load()
 

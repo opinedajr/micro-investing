@@ -7,6 +7,7 @@
 
 # Test binary
 *.test
+bin/
 
 # Output of go coverage
 *.out
@@ -34,7 +35,8 @@ go.work
 CLAUDE.md
 
 # Docs
-docs/
+docs/*
+!docs/api.md
 
 # OS
 .DS_Store

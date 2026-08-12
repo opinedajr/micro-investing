@@ -61,6 +61,10 @@ test: ## Executa os testes
 	@echo "🧪 Executando testes..."
 	@go test ./...
 
+test-e2e: ## Executa os testes de integração (E2E)
+	@echo "🧪 Executando testes E2E..."
+	@go test -tags=integration -v ./test/e2e/...
+
 test-v: ## Executa os testes
 	@echo "🧪 Executando testes..."
 	@go test -v ./...

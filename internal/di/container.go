@@ -8,6 +8,7 @@ import (
 
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
 	"github.com/opinedajr/micro-investing/internal/infrastructure/database"
+	"github.com/opinedajr/micro-investing/internal/patrimony"
 	"github.com/opinedajr/micro-investing/internal/shared/config"
 	sloglogger "github.com/opinedajr/micro-investing/internal/shared/logger"
 	"github.com/opinedajr/micro-investing/internal/wallet"
@@ -24,17 +25,20 @@ type Container struct {
 }
 
 type RepositoryDependencies struct {
-	walletRepository wallet.Repository
+	walletRepository    wallet.Repository
+	patrimonyRepository patrimony.PatrimonyRepository
 }
 
 type HandlerDependencies struct {
-	healthcheckHandler *healthcheck.Handler
-	walletHandler      *wallet.Handler
+	healthcheckHandler  *healthcheck.Handler
+	walletHandler       *wallet.Handler
+	patrimonyHandler    *patrimony.Handler
 }
 
 type ServiceDependencies struct {
 	healthcheckService *healthcheck.Service
 	walletService      wallet.Service
+	patrimonyService   patrimony.Service
 }
 
 func NewContainer() *Container {
@@ -125,4 +129,25 @@ func (c *Container) WalletHandler() *wallet.Handler {
 		c.handlers.walletHandler = wallet.NewHandler(c.WalletService())
 	}
 	return c.handlers.walletHandler
+}
+
+func (c *Container) PatrimonyRepository() patrimony.PatrimonyRepository {
+	if c.repositories.patrimonyRepository == nil {
+		c.repositories.patrimonyRepository = patrimony.NewSQLiteRepository(c.DB())
+	}
+	return c.repositories.patrimonyRepository
+}
+
+func (c *Container) PatrimonyService() patrimony.Service {
+	if c.services.patrimonyService == nil {
+		c.services.patrimonyService = patrimony.NewService(c.PatrimonyRepository())
+	}
+	return c.services.patrimonyService
+}
+
+func (c *Container) PatrimonyHandler() *patrimony.Handler {
+	if c.handlers.patrimonyHandler == nil {
+		c.handlers.patrimonyHandler = patrimony.NewHandler(c.PatrimonyService())
+	}
+	return c.handlers.patrimonyHandler
 }

@@ -27,10 +27,6 @@ func TestNewHandler(t *testing.T) {
 		mockService := &MockService{}
 		handler := NewHandler(mockService)
 
-		if handler == nil {
-			t.Error("expected handler to be non-nil")
-		}
-
 		if handler.service == nil {
 			t.Error("expected service to be non-nil")
 		}
