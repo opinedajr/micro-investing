@@ -342,8 +342,10 @@ func TestService_DeleteAsset(t *testing.T) {
 		assert.True(t, deleted)
 	})
 
-	t.Run("success - deletes patrimony if sum becomes zero", func(t *testing.T) {
+	t.Run("success - sets existing patrimony amount to zero when sum becomes zero", func(t *testing.T) {
 		date := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
+		updatedPatrimony := false
+		var updatedAmount int64 = -1
 
 		patrimonyRepo := &mockPatrimonyRepository{
 			runInTransactionFn: func(ctx context.Context, fn func(ctx context.Context) error) error {
@@ -360,6 +362,8 @@ func TestService_DeleteAsset(t *testing.T) {
 				}, nil
 			},
 			updateFunc: func(ctx context.Context, patrimony *Patrimony) error {
+				updatedPatrimony = true
+				updatedAmount = patrimony.Amount
 				return nil
 			},
 		}
@@ -386,6 +390,8 @@ func TestService_DeleteAsset(t *testing.T) {
 		err := service.DeleteAsset(context.Background(), "asset-id")
 
 		assert.NoError(t, err)
+		assert.True(t, updatedPatrimony, "updateFunc must be invoked to persist the zeroed patrimony amount")
+		assert.Equal(t, int64(0), updatedAmount, "existing patrimony amount must be set to zero when sum is zero (spec: patrimony is never deleted)")
 	})
 
 	t.Run("error - returns error when asset not found", func(t *testing.T) {
