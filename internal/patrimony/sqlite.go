@@ -129,7 +129,8 @@ func (r *SQLiteAssetRepository) FindByFilter(ctx context.Context, filter AssetFi
 		query = query.Where("date >= ?", filter.StartDate)
 	}
 	if filter.EndDate != nil {
-		query = query.Where("date <= ?", filter.EndDate)
+		upperBound := filter.EndDate.AddDate(0, 0, 1)
+		query = query.Where("date < ?", upperBound)
 	}
 	err := query.Order("date DESC").Find(&assets).Error
 	return assets, err

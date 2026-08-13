@@ -188,9 +188,16 @@ func TestSQLiteAssetRepository_FindByFilter(t *testing.T) {
 		require.NoError(t, repo.Create(context.Background(), &Asset{
 			WalletID:    "wallet-a",
 			Type:        TypeStocks,
-			Date:        time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC),
+			Date:        time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC),
 			Description: "Asset 3",
 			Amount:      75000,
+		}))
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeStocks,
+			Date:        time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 4",
+			Amount:      25000,
 		}))
 
 		end := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
@@ -199,7 +206,7 @@ func TestSQLiteAssetRepository_FindByFilter(t *testing.T) {
 			EndDate:  &end,
 		})
 		assert.NoError(t, err)
-		assert.Len(t, results, 2)
+		assert.Len(t, results, 3)
 	})
 
 	t.Run("success - filters by start_date and end_date combined", func(t *testing.T) {
