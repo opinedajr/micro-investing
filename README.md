@@ -150,6 +150,11 @@ Commands:
 - **URL**: `PUT /api/v1/wallets/:walletId/patrimonies/:id`
 - **Description**: Manage manual patrimony records per wallet. All monetary values are stored as integer cents. The `type` must be one of: `stocks`, `fiis`, `fixed_income`, `emergency_reserve`, `liquid_cash`.
 
+### Assets
+- **URL**: `POST /api/v1/wallets/:walletId/assets`
+- **URL**: `DELETE /api/v1/wallets/:walletId/assets/:id`
+- **Description**: Manage individual asset launches (investments) per wallet. Each asset records a date, description, type and amount (integer cents). Creating or deleting an asset automatically recalculates the corresponding patrimony record via `SUM(amount)` within the same transaction.
+
 For detailed request/response schemas see `docs/api.md`.
 
 | Command | Description |

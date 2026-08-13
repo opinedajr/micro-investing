@@ -27,6 +27,7 @@ type Container struct {
 type RepositoryDependencies struct {
 	walletRepository    wallet.Repository
 	patrimonyRepository patrimony.PatrimonyRepository
+	assetRepository     patrimony.AssetRepository
 }
 
 type HandlerDependencies struct {
@@ -133,14 +134,21 @@ func (c *Container) WalletHandler() *wallet.Handler {
 
 func (c *Container) PatrimonyRepository() patrimony.PatrimonyRepository {
 	if c.repositories.patrimonyRepository == nil {
-		c.repositories.patrimonyRepository = patrimony.NewSQLiteRepository(c.DB())
+		c.repositories.patrimonyRepository = patrimony.NewSQLitePatrimonyRepository(c.DB())
 	}
 	return c.repositories.patrimonyRepository
 }
 
+func (c *Container) AssetRepository() patrimony.AssetRepository {
+	if c.repositories.assetRepository == nil {
+		c.repositories.assetRepository = patrimony.NewSQLiteAssetRepository(c.DB())
+	}
+	return c.repositories.assetRepository
+}
+
 func (c *Container) PatrimonyService() patrimony.Service {
 	if c.services.patrimonyService == nil {
-		c.services.patrimonyService = patrimony.NewService(c.PatrimonyRepository())
+		c.services.patrimonyService = patrimony.NewService(c.PatrimonyRepository(), c.AssetRepository())
 	}
 	return c.services.patrimonyService
 }
