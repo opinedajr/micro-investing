@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"database/sql"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -95,10 +96,25 @@ func (s *E2ESuite) SetupSuite() {
 	patrimonies.GET("", patrimonyHandler.List)
 	patrimonies.POST("", patrimonyHandler.Create)
 	patrimonies.PUT("/:id", patrimonyHandler.Update)
-	
+
+	assets := wallets.Group("/:walletId/assets")
+	assets.POST("", patrimonyHandler.CreateAsset)
+	assets.DELETE("/:id", patrimonyHandler.DeleteAsset)
+
 	s.server = httptest.NewServer(r)
 
-	s.expect = httpexpect.Default(s.T(), s.server.URL)
+	s.expect = httpexpect.WithConfig(httpexpect.Config{
+		BaseURL:  s.server.URL,
+		Reporter: httpexpect.NewAssertReporter(s.T()),
+		Printers: []httpexpect.Printer{
+			httpexpect.NewCompactPrinter(s.T()),
+		},
+		Client: &http.Client{
+			Transport: &http.Transport{
+				DisableKeepAlives: true,
+			},
+		},
+	})
 }
 
 func (s *E2ESuite) TearDownSuite() {
@@ -109,7 +125,9 @@ func (s *E2ESuite) TearDownSuite() {
 }
 
 func (s *E2ESuite) SetupTest() {
-	err := s.container.DB().Exec("DELETE FROM patrimonies;").Error
+	err := s.container.DB().Exec("DELETE FROM assets;").Error
+	s.Require().NoError(err, "falha ao limpar tabela assets")
+	err = s.container.DB().Exec("DELETE FROM patrimonies;").Error
 	s.Require().NoError(err, "falha ao limpar tabela patrimonies")
 	err = s.container.DB().Exec("DELETE FROM wallets;").Error
 	s.Require().NoError(err, "falha ao limpar tabela wallets")
