@@ -54,12 +54,12 @@ func (m *mockPatrimonyRepository) RunInTransaction(ctx context.Context, fn func(
 }
 
 type mockAssetRepository struct {
-	createFunc  func(ctx context.Context, asset *Asset) error
-	updateFunc  func(ctx context.Context, asset *Asset) error
-	deleteFunc  func(ctx context.Context, id string) error
-	findByIDFunc func(ctx context.Context, id string) (*Asset, error)
+	createFunc       func(ctx context.Context, asset *Asset) error
+	updateFunc       func(ctx context.Context, asset *Asset) error
+	deleteFunc       func(ctx context.Context, id string) error
+	findByIDFunc     func(ctx context.Context, id string) (*Asset, error)
 	findByFilterFunc func(ctx context.Context, filter AssetFilter) ([]Asset, error)
-	sumFunc     func(ctx context.Context, walletID string, assetType AssetType, year int, month int) (int64, error)
+	sumFunc          func(ctx context.Context, walletID string, assetType AssetType, year int, month int) (int64, error)
 }
 
 func (m *mockAssetRepository) Create(ctx context.Context, asset *Asset) error {

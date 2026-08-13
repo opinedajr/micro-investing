@@ -133,6 +133,142 @@ func TestSQLiteAssetRepository_FindByFilter(t *testing.T) {
 		assert.Len(t, results, 1)
 		assert.Equal(t, TypeFIIs, results[0].Type)
 	})
+
+	t.Run("success - filters by start_date inclusive", func(t *testing.T) {
+		repo := setupSQLiteAssetRepository(t)
+
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeStocks,
+			Date:        time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 1",
+			Amount:      100000,
+		}))
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeStocks,
+			Date:        time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 2",
+			Amount:      50000,
+		}))
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeStocks,
+			Date:        time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 3",
+			Amount:      75000,
+		}))
+
+		start := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+		results, err := repo.FindByFilter(context.Background(), AssetFilter{
+			WalletID:  "wallet-a",
+			StartDate: &start,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, results, 2)
+	})
+
+	t.Run("success - filters by end_date inclusive", func(t *testing.T) {
+		repo := setupSQLiteAssetRepository(t)
+
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeStocks,
+			Date:        time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 1",
+			Amount:      100000,
+		}))
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeStocks,
+			Date:        time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 2",
+			Amount:      50000,
+		}))
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeStocks,
+			Date:        time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 3",
+			Amount:      75000,
+		}))
+
+		end := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
+		results, err := repo.FindByFilter(context.Background(), AssetFilter{
+			WalletID: "wallet-a",
+			EndDate:  &end,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, results, 2)
+	})
+
+	t.Run("success - filters by start_date and end_date combined", func(t *testing.T) {
+		repo := setupSQLiteAssetRepository(t)
+
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeStocks,
+			Date:        time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 1",
+			Amount:      100000,
+		}))
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeStocks,
+			Date:        time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 2",
+			Amount:      50000,
+		}))
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeStocks,
+			Date:        time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 3",
+			Amount:      75000,
+		}))
+
+		start := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+		end := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
+		results, err := repo.FindByFilter(context.Background(), AssetFilter{
+			WalletID:  "wallet-a",
+			StartDate: &start,
+			EndDate:   &end,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, results, 1)
+		assert.Equal(t, int64(50000), results[0].Amount)
+	})
+
+	t.Run("success - combines type and date range filters", func(t *testing.T) {
+		repo := setupSQLiteAssetRepository(t)
+
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeStocks,
+			Date:        time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 1",
+			Amount:      100000,
+		}))
+		require.NoError(t, repo.Create(context.Background(), &Asset{
+			WalletID:    "wallet-a",
+			Type:        TypeFIIs,
+			Date:        time.Date(2026, 7, 20, 12, 0, 0, 0, time.UTC),
+			Description: "Asset 2",
+			Amount:      50000,
+		}))
+
+		start := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+		end := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
+		results, err := repo.FindByFilter(context.Background(), AssetFilter{
+			WalletID:  "wallet-a",
+			Type:      TypeFIIs,
+			StartDate: &start,
+			EndDate:   &end,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, results, 1)
+		assert.Equal(t, TypeFIIs, results[0].Type)
+	})
 }
 
 func TestSQLiteAssetRepository_SumByWalletTypeAndMonth(t *testing.T) {
