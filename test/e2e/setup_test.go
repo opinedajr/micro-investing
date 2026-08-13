@@ -98,7 +98,9 @@ func (s *E2ESuite) SetupSuite() {
 	patrimonies.PUT("/:id", patrimonyHandler.Update)
 
 	assets := wallets.Group("/:walletId/assets")
+	assets.GET("", patrimonyHandler.ListAssets)
 	assets.POST("", patrimonyHandler.CreateAsset)
+	assets.PUT("/:id", patrimonyHandler.UpdateAsset)
 	assets.DELETE("/:id", patrimonyHandler.DeleteAsset)
 
 	s.server = httptest.NewServer(r)
