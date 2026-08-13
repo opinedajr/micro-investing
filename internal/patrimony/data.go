@@ -1,5 +1,7 @@
 package patrimony
 
+import "time"
+
 type CreatePatrimonyInput struct {
 	WalletID string    `json:"-"`
 	Year     int       `json:"year" validate:"required"`
@@ -42,6 +44,14 @@ type CreateAssetInput struct {
 	Amount      int64     `json:"amount" validate:"required"`
 }
 
+type UpdateAssetInput struct {
+	WalletID    string    `json:"-"`
+	Type        AssetType `json:"type" validate:"required"`
+	Date        string    `json:"date" validate:"required"`
+	Description string    `json:"description" validate:"required"`
+	Amount      int64     `json:"amount" validate:"required"`
+}
+
 type AssetOutput struct {
 	ID          string    `json:"id"`
 	WalletID    string    `json:"wallet_id"`
@@ -54,6 +64,8 @@ type AssetOutput struct {
 }
 
 type AssetFilter struct {
-	WalletID string
-	Type     AssetType
+	WalletID  string
+	Type      AssetType
+	StartDate *time.Time
+	EndDate   *time.Time
 }
