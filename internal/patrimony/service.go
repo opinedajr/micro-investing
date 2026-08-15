@@ -12,12 +12,14 @@ type Service interface {
 	Update(ctx context.Context, id string, input UpdatePatrimonyInput) (*PatrimonyOutput, error)
 	List(ctx context.Context, filter PatrimonyFilter) ([]PatrimonyOutput, error)
 	CreateAsset(ctx context.Context, input CreateAssetInput) (*AssetOutput, error)
+	UpdateAsset(ctx context.Context, id string, input UpdateAssetInput) (*AssetOutput, error)
 	DeleteAsset(ctx context.Context, id string) error
+	ListAssets(ctx context.Context, filter AssetFilter) ([]AssetOutput, error)
 }
 
 type patrimonyService struct {
-	repo       PatrimonyRepository
-	assetRepo  AssetRepository
+	repo      PatrimonyRepository
+	assetRepo AssetRepository
 }
 
 func NewService(repo PatrimonyRepository, assetRepo AssetRepository) Service {
@@ -135,6 +137,62 @@ func (s *patrimonyService) CreateAsset(ctx context.Context, input CreateAssetInp
 	return toAssetOutput(asset), nil
 }
 
+func (s *patrimonyService) UpdateAsset(ctx context.Context, id string, input UpdateAssetInput) (*AssetOutput, error) {
+	if s.assetRepo == nil {
+		return nil, fmt.Errorf("asset repository not configured")
+	}
+
+	parsedDate, err := time.Parse(time.RFC3339, input.Date)
+	if err != nil {
+		return nil, ErrInvalidAssetDate
+	}
+
+	if err := validateAssetInput(input.Type, parsedDate, input.Description, input.Amount); err != nil {
+		return nil, err
+	}
+
+	var updatedAsset *Asset
+	var oldYear, oldMonth int
+	var oldType AssetType
+
+	if err := s.repo.RunInTransaction(ctx, func(txCtx context.Context) error {
+		existing, err := s.assetRepo.FindByID(txCtx, id)
+		if err != nil {
+			return err
+		}
+
+		oldYear = existing.Date.Year()
+		oldMonth = int(existing.Date.Month())
+		oldType = existing.Type
+
+		existing.Type = input.Type
+		existing.Date = parsedDate
+		existing.Description = input.Description
+		existing.Amount = input.Amount
+
+		if err := s.assetRepo.Update(txCtx, existing); err != nil {
+			return err
+		}
+
+		updatedAsset = existing
+
+		newYear := parsedDate.Year()
+		newMonth := int(parsedDate.Month())
+
+		if oldYear != newYear || oldMonth != newMonth || oldType != input.Type {
+			if err := s.recalcPatrimony(txCtx, input.WalletID, oldType, oldYear, oldMonth); err != nil {
+				return err
+			}
+		}
+
+		return s.recalcPatrimony(txCtx, input.WalletID, input.Type, newYear, newMonth)
+	}); err != nil {
+		return nil, err
+	}
+
+	return toAssetOutput(updatedAsset), nil
+}
+
 func (s *patrimonyService) DeleteAsset(ctx context.Context, id string) error {
 	if s.assetRepo == nil {
 		return fmt.Errorf("asset repository not configured")
@@ -152,6 +210,23 @@ func (s *patrimonyService) DeleteAsset(ctx context.Context, id string) error {
 
 		return s.recalcPatrimony(txCtx, asset.WalletID, asset.Type, asset.Date.Year(), int(asset.Date.Month()))
 	})
+}
+
+func (s *patrimonyService) ListAssets(ctx context.Context, filter AssetFilter) ([]AssetOutput, error) {
+	if filter.StartDate != nil && filter.EndDate != nil && filter.StartDate.After(*filter.EndDate) {
+		return nil, ErrInvalidDateRange
+	}
+
+	assets, err := s.assetRepo.FindByFilter(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	outputs := make([]AssetOutput, len(assets))
+	for i, a := range assets {
+		outputs[i] = *toAssetOutput(&a)
+	}
+	return outputs, nil
 }
 
 func (s *patrimonyService) recalcPatrimony(ctx context.Context, walletID string, assetType AssetType, year int, month int) error {

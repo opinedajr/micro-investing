@@ -16,6 +16,8 @@ func RegisterRoutes(rg *gin.RouterGroup, h *Handler, walletService wallet.Servic
 	patrimonies.PUT("/:id", h.Update)
 
 	assets := wallets.Group("/:walletId/assets")
+	assets.GET("", h.ListAssets)
 	assets.POST("", h.CreateAsset)
+	assets.PUT("/:id", h.UpdateAsset)
 	assets.DELETE("/:id", h.DeleteAsset)
 }

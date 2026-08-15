@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -168,6 +169,43 @@ func (h *Handler) CreateAsset(c *gin.Context) {
 	})
 }
 
+func (h *Handler) UpdateAsset(c *gin.Context) {
+	var input UpdateAssetInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "Invalid JSON format",
+			},
+		})
+		return
+	}
+
+	if err := h.validator.Struct(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "Validation failed",
+				Details: buildValidationDetails(err),
+			},
+		})
+		return
+	}
+
+	input.WalletID = c.Param("walletId")
+	id := c.Param("id")
+
+	output, err := h.service.UpdateAsset(c.Request.Context(), id, input)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, api.Response[*AssetOutput]{
+		Data: output,
+	})
+}
+
 func (h *Handler) DeleteAsset(c *gin.Context) {
 	id := c.Param("id")
 
@@ -177,6 +215,52 @@ func (h *Handler) DeleteAsset(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) ListAssets(c *gin.Context) {
+	filter := AssetFilter{
+		WalletID: c.Param("walletId"),
+	}
+
+	if assetType := c.Query("type"); assetType != "" {
+		filter.Type = AssetType(assetType)
+	}
+	if startDateStr := c.Query("start_date"); startDateStr != "" {
+		startDate, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
+				Error: &api.APIError{
+					Code:    "VALIDATION_ERROR",
+					Message: "Invalid start_date format, expected YYYY-MM-DD",
+				},
+			})
+			return
+		}
+		filter.StartDate = &startDate
+	}
+	if endDateStr := c.Query("end_date"); endDateStr != "" {
+		endDate, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
+				Error: &api.APIError{
+					Code:    "VALIDATION_ERROR",
+					Message: "Invalid end_date format, expected YYYY-MM-DD",
+				},
+			})
+			return
+		}
+		filter.EndDate = &endDate
+	}
+
+	outputs, err := h.service.ListAssets(c.Request.Context(), filter)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, api.Response[[]AssetOutput]{
+		Data: outputs,
+	})
 }
 
 func (h *Handler) handleServiceError(c *gin.Context, err error) {
@@ -202,7 +286,7 @@ func (h *Handler) handleServiceError(c *gin.Context, err error) {
 				Message: "Asset not found",
 			},
 		})
-	case errors.Is(err, ErrInvalidAssetType), errors.Is(err, ErrInvalidPatrimonyYear), errors.Is(err, ErrInvalidPatrimonyMonth), errors.Is(err, ErrInvalidPatrimonyAmount), errors.Is(err, ErrInvalidAssetDate), errors.Is(err, ErrInvalidAssetDescription), errors.Is(err, ErrInvalidAssetAmount):
+	case errors.Is(err, ErrInvalidAssetType), errors.Is(err, ErrInvalidPatrimonyYear), errors.Is(err, ErrInvalidPatrimonyMonth), errors.Is(err, ErrInvalidPatrimonyAmount), errors.Is(err, ErrInvalidAssetDate), errors.Is(err, ErrInvalidAssetDescription), errors.Is(err, ErrInvalidAssetAmount), errors.Is(err, ErrInvalidDateRange):
 		c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
 			Error: &api.APIError{
 				Code:    "VALIDATION_ERROR",

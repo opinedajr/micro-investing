@@ -152,7 +152,7 @@ Common error codes:
 
 Individual investment launches. All monetary values are integer cents (e.g. `150000` means R$ 1.500,00). The `date` must be an RFC3339 timestamp and cannot be in the future. The `description` must be between 3 and 100 characters. The `amount` must be greater than zero.
 
-Creating or deleting an asset automatically recalculates the corresponding patrimony record (`SUM(amount)` of all assets for the same wallet/type/year/month) within the same transaction.
+Creating, updating or deleting an asset automatically recalculates the corresponding patrimony record (`SUM(amount)` of all assets for the same wallet/type/year/month) within the same transaction. When an update changes the asset's `date` and/or `type` across year/month or type boundaries, both the original and the new (wallet/type/year/month) patrimony records are recalculated.
 
 Valid asset types (`type`): same as patrimony.
 
@@ -187,6 +187,57 @@ Valid asset types (`type`): same as patrimony.
 ```
 
 Errors: `422 Unprocessable Entity` (validation), `500 Internal Server Error`.
+
+### Update Asset
+- **URL**: `PUT /api/v1/wallets/:walletId/assets/:id`
+- **Request Body**: same as Create Asset
+- **Response**: `200 OK`
+
+```json
+{
+  "data": {
+    "id": "asset-id",
+    "wallet_id": "wallet-id",
+    "type": "stocks",
+    "date": "2026-07-20T12:00:00Z",
+    "description": "PETR4 - Petrobras (split adjusted)",
+    "amount": 200000,
+    "created_at": "2026-07-25T12:00:00Z",
+    "updated_at": "2026-07-25T12:00:00Z"
+  }
+}
+```
+
+Behavior: updating an asset triggers an automatic patrimony recalculation within the same transaction. If the asset's `date` and/or `type` change in a way that crosses month or type boundaries, both the original and the new (wallet/type/year/month) patrimony records are recalculated.
+
+Errors: `404 Not Found` (asset not found), `422 Unprocessable Entity` (validation), `500 Internal Server Error`.
+
+### List Assets
+- **URL**: `GET /api/v1/wallets/:walletId/assets?type=&start_date=&end_date=`
+- **Query Parameters** (all optional):
+  - `type`: asset type filter (one of: `stocks`, `fiis`, `fixed_income`, `emergency_reserve`, `liquid_cash`)
+  - `start_date`: inclusive lower bound for the asset date, format `YYYY-MM-DD` (e.g. `2026-07-01`)
+  - `end_date`: inclusive upper bound for the asset date, format `YYYY-MM-DD` (e.g. `2026-07-31`)
+- **Response**: `200 OK` with assets ordered by date DESC
+
+```json
+{
+  "data": [
+    {
+      "id": "asset-id",
+      "wallet_id": "wallet-id",
+      "type": "stocks",
+      "date": "2026-07-15T12:00:00Z",
+      "description": "PETR4 - Petrobras",
+      "amount": 150000,
+      "created_at": "2026-07-25T12:00:00Z",
+      "updated_at": "2026-07-25T12:00:00Z"
+    }
+  ]
+}
+```
+
+Errors: `422 Unprocessable Entity` (invalid date format, or `start_date > end_date`), `500 Internal Server Error`.
 
 ### Delete Asset
 - **URL**: `DELETE /api/v1/wallets/:walletId/assets/:id`
