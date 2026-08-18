@@ -1,6 +1,6 @@
 include .env
 
-.PHONY: help setup dev dev-up dev-down build test clean docker docker-down install-deps run
+.PHONY: help setup dev dev-up dev-down build test clean docker docker-down install-deps run seed-stock
 
 BINARY_NAME=stats-central-api
 DOCKER_COMPOSE_FILE=docker-compose.yml
@@ -61,10 +61,6 @@ test: ## Executa os testes
 	@echo "🧪 Executando testes..."
 	@go test ./...
 
-test-e2e: ## Executa os testes de integração (E2E)
-	@echo "🧪 Executando testes E2E..."
-	@go test -tags=integration -v ./test/e2e/...
-
 test-v: ## Executa os testes
 	@echo "🧪 Executando testes..."
 	@go test -v ./...
@@ -102,3 +98,8 @@ rollback:
 	@echo "⏪ Executando rollback das migrações..."
 	@$(MIGRATE_CMD) -path $(MIGRATE_PATH) -database "$(DB_URL)" down 1
 	@echo "✅ Rollback concluído"
+
+seed-stock: ## Popula o catálogo de stocks
+	@echo "🌱 Populando catálogo de stocks..."
+	@go run cmd/seed/main.go
+	@echo "✅ Seed concluído"
