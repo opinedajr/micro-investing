@@ -8,9 +8,9 @@ import (
 
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
 	"github.com/opinedajr/micro-investing/internal/infrastructure/database"
-	"github.com/opinedajr/micro-investing/internal/patrimony"
 	"github.com/opinedajr/micro-investing/internal/shared/config"
 	sloglogger "github.com/opinedajr/micro-investing/internal/shared/logger"
+	"github.com/opinedajr/micro-investing/internal/stock"
 	"github.com/opinedajr/micro-investing/internal/wallet"
 )
 
@@ -25,21 +25,20 @@ type Container struct {
 }
 
 type RepositoryDependencies struct {
-	walletRepository    wallet.Repository
-	patrimonyRepository patrimony.PatrimonyRepository
-	assetRepository     patrimony.AssetRepository
+	walletRepository wallet.Repository
+	stockRepository  stock.Repository
 }
 
 type HandlerDependencies struct {
-	healthcheckHandler  *healthcheck.Handler
-	walletHandler       *wallet.Handler
-	patrimonyHandler    *patrimony.Handler
+	healthcheckHandler *healthcheck.Handler
+	walletHandler      *wallet.Handler
+	stockHandler       stock.Handler
 }
 
 type ServiceDependencies struct {
 	healthcheckService *healthcheck.Service
 	walletService      wallet.Service
-	patrimonyService   patrimony.Service
+	stockService       stock.Service
 }
 
 func NewContainer() *Container {
@@ -132,30 +131,23 @@ func (c *Container) WalletHandler() *wallet.Handler {
 	return c.handlers.walletHandler
 }
 
-func (c *Container) PatrimonyRepository() patrimony.PatrimonyRepository {
-	if c.repositories.patrimonyRepository == nil {
-		c.repositories.patrimonyRepository = patrimony.NewSQLitePatrimonyRepository(c.DB())
+func (c *Container) StockRepository() stock.Repository {
+	if c.repositories.stockRepository == nil {
+		c.repositories.stockRepository = stock.NewSQLiteRepository(c.DB())
 	}
-	return c.repositories.patrimonyRepository
+	return c.repositories.stockRepository
 }
 
-func (c *Container) AssetRepository() patrimony.AssetRepository {
-	if c.repositories.assetRepository == nil {
-		c.repositories.assetRepository = patrimony.NewSQLiteAssetRepository(c.DB())
+func (c *Container) StockService() stock.Service {
+	if c.services.stockService == nil {
+		c.services.stockService = stock.NewStockService(c.StockRepository())
 	}
-	return c.repositories.assetRepository
+	return c.services.stockService
 }
 
-func (c *Container) PatrimonyService() patrimony.Service {
-	if c.services.patrimonyService == nil {
-		c.services.patrimonyService = patrimony.NewService(c.PatrimonyRepository(), c.AssetRepository())
+func (c *Container) StockHandler() stock.Handler {
+	if c.handlers.stockHandler == nil {
+		c.handlers.stockHandler = stock.NewHandler(c.StockService())
 	}
-	return c.services.patrimonyService
-}
-
-func (c *Container) PatrimonyHandler() *patrimony.Handler {
-	if c.handlers.patrimonyHandler == nil {
-		c.handlers.patrimonyHandler = patrimony.NewHandler(c.PatrimonyService())
-	}
-	return c.handlers.patrimonyHandler
+	return c.handlers.stockHandler
 }
