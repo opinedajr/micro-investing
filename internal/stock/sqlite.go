@@ -49,7 +49,10 @@ func (r *sqliteRepository) Seed(ctx context.Context, stocks []Stock, force bool)
 		err := r.db.WithContext(ctx).Where("ticker = ?", stock.Ticker).First(&existing).Error
 
 		if err == gorm.ErrRecordNotFound {
-			if err := r.Create(ctx, &stock); err != nil {
+			sql := `INSERT OR IGNORE INTO stocks (id, ticker, name, sector, rank, website, created_at, updated_at) 
+			        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+			if err := r.db.WithContext(ctx).Exec(sql, 
+				stock.ID, stock.Ticker, stock.Name, stock.Sector, stock.Rank, stock.Website, stock.CreatedAt, stock.UpdatedAt).Error; err != nil {
 				return 0, 0, 0, ErrFailedToCreate
 			}
 			inserted++
