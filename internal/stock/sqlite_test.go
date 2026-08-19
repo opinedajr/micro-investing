@@ -163,4 +163,45 @@ func TestSQLiteRepository_Seed(t *testing.T) {
 		assert.Equal(t, "Petrobras SA", found.Name)
 		assert.Equal(t, int8(9), found.Rank)
 	})
+
+	t.Run("success - idempotency with INSERT OR IGNORE", func(t *testing.T) {
+		gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
+		require.NoError(t, err)
+
+		err = gormDB.AutoMigrate(&Stock{})
+		require.NoError(t, err)
+
+		repo := NewSQLiteRepository(gormDB)
+
+		stocks := []Stock{
+			{Ticker: "PETR4", Name: "Petrobras", Sector: "Energia", Rank: 10},
+			{Ticker: "VALE3", Name: "Vale", Sector: "Mineração", Rank: 10},
+		}
+
+		inserted, updated, skipped, err := repo.Seed(context.Background(), stocks, false)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, inserted)
+		assert.Equal(t, 0, updated)
+		assert.Equal(t, 0, skipped)
+
+		list, err := repo.List(context.Background())
+		assert.NoError(t, err)
+		assert.Len(t, list, 2)
+
+		inserted2, updated2, skipped2, err := repo.Seed(context.Background(), stocks, false)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, inserted2)
+		assert.Equal(t, 0, updated2)
+		assert.Equal(t, 2, skipped2)
+
+		list2, err := repo.List(context.Background())
+		assert.NoError(t, err)
+		assert.Len(t, list2, 2)
+
+		for i := 0; i < len(list); i++ {
+			assert.Equal(t, list[i].ID, list2[i].ID)
+			assert.Equal(t, list[i].Ticker, list2[i].Ticker)
+			assert.Equal(t, list[i].Name, list2[i].Name)
+		}
+	})
 }
