@@ -39,7 +39,7 @@ func (m *mockWalletServiceForRoutes) Delete(ctx context.Context, id string) erro
 func TestRegisterRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("success - registers patrimony routes under /api/v1/wallets/:walletId/patrimonies", func(t *testing.T) {
+	t.Run("success - registers patrimony routes under /api/v1/wallets/:id/patrimonies", func(t *testing.T) {
 		mockSvc := newMockService(func(ctx context.Context, input CreatePatrimonyInput) (*PatrimonyOutput, error) {
 			return &PatrimonyOutput{
 				ID:        "patrimony-id",
