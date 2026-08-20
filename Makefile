@@ -102,3 +102,8 @@ rollback:
 	@echo "⏪ Executando rollback das migrações..."
 	@$(MIGRATE_CMD) -path $(MIGRATE_PATH) -database "$(DB_URL)" down 1
 	@echo "✅ Rollback concluído"
+
+seed-stock:
+	@echo "🌱 Executando seed de stocks..."
+	@go run cmd/seed/main.go $(ARGS)
+	@echo "✅ Seed de stocks concluído"
