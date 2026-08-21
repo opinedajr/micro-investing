@@ -45,7 +45,7 @@ func TestHandler_Create(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/patrimonies", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.Create(c)
 
@@ -70,7 +70,7 @@ func TestHandler_Create(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/patrimonies", bytes.NewBuffer([]byte("{invalid")))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.Create(c)
 
@@ -95,7 +95,7 @@ func TestHandler_Create(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/patrimonies", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.Create(c)
 
@@ -125,7 +125,7 @@ func TestHandler_Create(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/patrimonies", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.Create(c)
 
@@ -155,7 +155,7 @@ func TestHandler_Create(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/patrimonies", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.Create(c)
 
@@ -185,7 +185,7 @@ func TestHandler_Create(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/patrimonies", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.Create(c)
 
@@ -229,8 +229,8 @@ func TestHandler_Update(t *testing.T) {
 		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-id/patrimonies/patrimony-id", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = []gin.Param{
-			{Key: "walletId", Value: "wallet-id"},
-			{Key: "id", Value: "patrimony-id"},
+			{Key: "id", Value: "wallet-id"},
+			{Key: "patrimonyId", Value: "patrimony-id"},
 		}
 
 		handler.Update(c)
@@ -258,8 +258,8 @@ func TestHandler_Update(t *testing.T) {
 		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-id/patrimonies/patrimony-id", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = []gin.Param{
-			{Key: "walletId", Value: "wallet-id"},
-			{Key: "id", Value: "patrimony-id"},
+			{Key: "id", Value: "wallet-id"},
+			{Key: "patrimonyId", Value: "patrimony-id"},
 		}
 
 		handler.Update(c)
@@ -291,8 +291,8 @@ func TestHandler_Update(t *testing.T) {
 		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-id/patrimonies/patrimony-id", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = []gin.Param{
-			{Key: "walletId", Value: "wallet-id"},
-			{Key: "id", Value: "patrimony-id"},
+			{Key: "id", Value: "wallet-id"},
+			{Key: "patrimonyId", Value: "patrimony-id"},
 		}
 
 		handler.Update(c)
@@ -324,8 +324,8 @@ func TestHandler_Update(t *testing.T) {
 		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-id/patrimonies/patrimony-id", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = []gin.Param{
-			{Key: "walletId", Value: "wallet-id"},
-			{Key: "id", Value: "patrimony-id"},
+			{Key: "id", Value: "wallet-id"},
+			{Key: "patrimonyId", Value: "patrimony-id"},
 		}
 
 		handler.Update(c)
@@ -362,7 +362,7 @@ func TestHandler_List(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/patrimonies?type=stocks&year=2026&month=7", nil)
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.List(c)
 
@@ -384,7 +384,7 @@ func TestHandler_List(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/patrimonies", nil)
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.List(c)
 

@@ -3,6 +3,7 @@
 package e2e
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
@@ -21,10 +22,10 @@ import (
 
 	"github.com/opinedajr/micro-investing/internal/di"
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
-	"github.com/opinedajr/micro-investing/internal/shared/middleware"
+	"github.com/opinedajr/micro-investing/internal/patrimony"
+	"github.com/opinedajr/micro-investing/internal/stock"
+	"github.com/opinedajr/micro-investing/internal/wallet"
 )
-
-
 
 type E2ESuite struct {
 	suite.Suite
@@ -54,14 +55,14 @@ func (s *E2ESuite) SetupSuite() {
 	os.Setenv("SERVER_PORT", "0")
 
 	s.container = di.NewContainer()
-	
+
 	db, err := s.container.DB().DB()
 	s.Require().NoError(err, "failed to get underlying sql.DB")
 	s.db = db
 
 	migrationsPath := "file://../../migrations"
 	dbURL := "sqlite3://" + dbPath
-	
+
 	m, err := migrate.New(migrationsPath, dbURL)
 	s.Require().NoError(err, "failed to initialize migrator")
 
@@ -72,36 +73,15 @@ func (s *E2ESuite) SetupSuite() {
 
 	_, _ = m.Close()
 
+	err = s.container.StockService().Seed(context.Background(), stock.SeedInput{Force: false})
+	s.Require().NoError(err, "failed to seed stocks")
+
 	r := gin.Default()
 	v1 := r.Group("/api/v1")
 	healthcheck.RegisterRoutes(v1, s.container.HealthCheckHandler())
-
-	walletHandler := s.container.WalletHandler()
-	wallets := v1.Group("/wallets")
-	wallets.Use(func(c *gin.Context) {
-		if walletID := c.Param("walletId"); walletID != "" {
-			c.Params = append(c.Params, gin.Param{Key: "id", Value: walletID})
-		}
-		c.Next()
-	})
-	wallets.GET("/:walletId", walletHandler.Find)
-	wallets.PUT("/:walletId", walletHandler.Update)
-	wallets.DELETE("/:walletId", walletHandler.Delete)
-	wallets.POST("", walletHandler.Create)
-	wallets.GET("", walletHandler.List)
-
-	patrimonyHandler := s.container.PatrimonyHandler()
-	wallets.Use(middleware.WalletMiddleware(s.container.WalletService()))
-	patrimonies := wallets.Group("/:walletId/patrimonies")
-	patrimonies.GET("", patrimonyHandler.List)
-	patrimonies.POST("", patrimonyHandler.Create)
-	patrimonies.PUT("/:id", patrimonyHandler.Update)
-
-	assets := wallets.Group("/:walletId/assets")
-	assets.GET("", patrimonyHandler.ListAssets)
-	assets.POST("", patrimonyHandler.CreateAsset)
-	assets.PUT("/:id", patrimonyHandler.UpdateAsset)
-	assets.DELETE("/:id", patrimonyHandler.DeleteAsset)
+	wallet.RegisterRoutes(v1, s.container.WalletHandler())
+	patrimony.RegisterRoutes(v1, s.container.PatrimonyHandler(), s.container.WalletService())
+	stock.RegisterRoutes(v1, s.container.StockHandler())
 
 	s.server = httptest.NewServer(r)
 

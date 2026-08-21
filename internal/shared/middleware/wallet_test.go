@@ -53,7 +53,7 @@ func TestWalletMiddleware(t *testing.T) {
 
 		r := gin.New()
 		r.Use(WalletMiddleware(service))
-		r.GET("/wallets/:walletId/patrimonies", func(c *gin.Context) {
+		r.GET("/wallets/:id/patrimonies", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		})
 
@@ -73,7 +73,7 @@ func TestWalletMiddleware(t *testing.T) {
 
 		r := gin.New()
 		r.Use(WalletMiddleware(service))
-		r.GET("/wallets/:walletId/patrimonies", func(c *gin.Context) {
+		r.GET("/wallets/:id/patrimonies", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		})
 
