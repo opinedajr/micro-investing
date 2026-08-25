@@ -68,7 +68,7 @@ Valid asset types (`type`):
 - `liquid_cash`
 
 ### List Patrimonies
-- **URL**: `GET /api/v1/wallets/:walletId/patrimonies?type=&year=&month=`
+- **URL**: `GET /api/v1/wallets/:id/patrimonies?type=&year=&month=`
 - **Query Parameters** (all optional):
   - `type`: asset type filter
   - `year`: integer year filter
@@ -93,7 +93,7 @@ Valid asset types (`type`):
 ```
 
 ### Create Patrimony
-- **URL**: `POST /api/v1/wallets/:walletId/patrimonies`
+- **URL**: `POST /api/v1/wallets/:id/patrimonies`
 - **Request Body**:
 
 ```json
@@ -108,7 +108,7 @@ Valid asset types (`type`):
 - **Response**: `201 Created` or `409 Conflict` (duplicate) or `422 Unprocessable Entity` (validation)
 
 ### Update Patrimony
-- **URL**: `PUT /api/v1/wallets/:walletId/patrimonies/:id`
+- **URL**: `PUT /api/v1/wallets/:id/patrimonies/:id`
 - **Request Body**:
 
 ```json
@@ -157,7 +157,7 @@ Creating, updating or deleting an asset automatically recalculates the correspon
 Valid asset types (`type`): same as patrimony.
 
 ### Create Asset
-- **URL**: `POST /api/v1/wallets/:walletId/assets`
+- **URL**: `POST /api/v1/wallets/:id/assets`
 - **Request Body**:
 
 ```json
@@ -189,7 +189,7 @@ Valid asset types (`type`): same as patrimony.
 Errors: `422 Unprocessable Entity` (validation), `500 Internal Server Error`.
 
 ### Update Asset
-- **URL**: `PUT /api/v1/wallets/:walletId/assets/:id`
+- **URL**: `PUT /api/v1/wallets/:id/assets/:id`
 - **Request Body**: same as Create Asset
 - **Response**: `200 OK`
 
@@ -213,7 +213,7 @@ Behavior: updating an asset triggers an automatic patrimony recalculation within
 Errors: `404 Not Found` (asset not found), `422 Unprocessable Entity` (validation), `500 Internal Server Error`.
 
 ### List Assets
-- **URL**: `GET /api/v1/wallets/:walletId/assets?type=&start_date=&end_date=`
+- **URL**: `GET /api/v1/wallets/:id/assets?type=&start_date=&end_date=`
 - **Query Parameters** (all optional):
   - `type`: asset type filter (one of: `stocks`, `fiis`, `fixed_income`, `emergency_reserve`, `liquid_cash`)
   - `start_date`: inclusive lower bound for the asset date, format `YYYY-MM-DD` (e.g. `2026-07-01`)
@@ -240,6 +240,67 @@ Errors: `404 Not Found` (asset not found), `422 Unprocessable Entity` (validatio
 Errors: `422 Unprocessable Entity` (invalid date format, or `start_date > end_date`), `500 Internal Server Error`.
 
 ### Delete Asset
-- **URL**: `DELETE /api/v1/wallets/:walletId/assets/:id`
+- **URL**: `DELETE /api/v1/wallets/:id/assets/:id`
 - **Response**: `204 No Content` on success. The corresponding patrimony record (wallet/type/year/month) is recalculated inside the same transaction. If the sum becomes zero, the patrimony record amount is set to zero (kept as record).
 - **Errors**: `404 Not Found` (asset not found), `500 Internal Server Error`.
+
+---
+
+## Stocks
+
+Read-only catalog of B3 stocks. The catalog is populated and updated exclusively via the `make seed-stock` CLI. It is not mutable through the REST API.
+
+### List Stocks
+- **URL**: `GET /api/v1/stocks`
+- **Response**: `200 OK`
+
+```json
+{
+  "data": [
+    {
+      "id": "stock-id",
+      "ticker": "PETR4",
+      "name": "Petrobras PN",
+      "sector": "Petróleo, Gás e Biocombustíveis",
+      "rank": 10,
+      "website": "https://petrobras.com.br",
+      "created_at": "2026-08-20T12:00:00Z",
+      "updated_at": "2026-08-20T12:00:00Z"
+    }
+  ]
+}
+```
+
+### Find Stock by Ticker
+- **URL**: `GET /api/v1/stocks/:ticker`
+- **Response**: `200 OK` or `404 Not Found`
+
+```json
+{
+  "data": {
+    "id": "stock-id",
+    "ticker": "PETR4",
+    "name": "Petrobras PN",
+    "sector": "Petróleo, Gás e Biocombustíveis",
+    "rank": 10,
+    "website": "https://petrobras.com.br",
+    "created_at": "2026-08-20T12:00:00Z",
+    "updated_at": "2026-08-20T12:00:00Z"
+  }
+}
+```
+
+Error response:
+```json
+{
+  "error": {
+    "code": "STOCK_NOT_FOUND",
+    "message": "Stock not found"
+  }
+}
+```
+
+### Seed Stocks
+- **Command**: `make seed-stock`
+- **Description**: Idempotently seeds ~29 B3 blue-chip stocks. Repeating the command does not duplicate rows or overwrite manual edits.
+- **Force overwrite**: `make seed-stock ARGS="--force"`

@@ -46,7 +46,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	input.WalletID = c.Param("walletId")
+	input.WalletID = c.Param("id")
 
 	output, err := h.service.Create(c.Request.Context(), input)
 	if err != nil {
@@ -82,8 +82,8 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	input.WalletID = c.Param("walletId")
-	id := c.Param("id")
+	input.WalletID = c.Param("id")
+	id := c.Param("patrimonyId")
 
 	output, err := h.service.Update(c.Request.Context(), id, input)
 	if err != nil {
@@ -98,7 +98,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 func (h *Handler) List(c *gin.Context) {
 	filter := PatrimonyFilter{
-		WalletID: c.Param("walletId"),
+		WalletID: c.Param("id"),
 	}
 
 	if assetType := c.Query("type"); assetType != "" {
@@ -156,7 +156,7 @@ func (h *Handler) CreateAsset(c *gin.Context) {
 		return
 	}
 
-	input.WalletID = c.Param("walletId")
+	input.WalletID = c.Param("id")
 
 	output, err := h.service.CreateAsset(c.Request.Context(), input)
 	if err != nil {
@@ -192,8 +192,8 @@ func (h *Handler) UpdateAsset(c *gin.Context) {
 		return
 	}
 
-	input.WalletID = c.Param("walletId")
-	id := c.Param("id")
+	input.WalletID = c.Param("id")
+	id := c.Param("assetId")
 
 	output, err := h.service.UpdateAsset(c.Request.Context(), id, input)
 	if err != nil {
@@ -207,7 +207,7 @@ func (h *Handler) UpdateAsset(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAsset(c *gin.Context) {
-	id := c.Param("id")
+	id := c.Param("assetId")
 
 	if err := h.service.DeleteAsset(c.Request.Context(), id); err != nil {
 		h.handleServiceError(c, err)
@@ -219,7 +219,7 @@ func (h *Handler) DeleteAsset(c *gin.Context) {
 
 func (h *Handler) ListAssets(c *gin.Context) {
 	filter := AssetFilter{
-		WalletID: c.Param("walletId"),
+		WalletID: c.Param("id"),
 	}
 
 	if assetType := c.Query("type"); assetType != "" {

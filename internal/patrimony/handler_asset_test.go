@@ -45,7 +45,7 @@ func TestHandler_CreateAsset(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/assets", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.CreateAsset(c)
 
@@ -68,7 +68,7 @@ func TestHandler_CreateAsset(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/assets", bytes.NewBuffer([]byte("{invalid")))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.CreateAsset(c)
 
@@ -93,7 +93,7 @@ func TestHandler_CreateAsset(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/assets", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.CreateAsset(c)
 
@@ -124,7 +124,7 @@ func TestHandler_CreateAsset(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/assets", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.CreateAsset(c)
 
@@ -155,7 +155,7 @@ func TestHandler_CreateAsset(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/assets", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.CreateAsset(c)
 
@@ -186,7 +186,7 @@ func TestHandler_CreateAsset(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/assets", bytes.NewBuffer(jsonBody))
 		c.Request.Header.Set("Content-Type", "application/json")
-		c.Params = []gin.Param{{Key: "walletId", Value: "wallet-id"}}
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
 
 		handler.CreateAsset(c)
 

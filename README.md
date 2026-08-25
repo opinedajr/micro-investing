@@ -145,17 +145,27 @@ Commands:
 - **Description**: Manage investment wallets.
 
 ### Patrimonies
-- **URL**: `GET /api/v1/wallets/:walletId/patrimonies?type=&year=&month=`
-- **URL**: `POST /api/v1/wallets/:walletId/patrimonies`
-- **URL**: `PUT /api/v1/wallets/:walletId/patrimonies/:id`
+- **URL**: `GET /api/v1/wallets/:id/patrimonies?type=&year=&month=`
+- **URL**: `POST /api/v1/wallets/:id/patrimonies`
+- **URL**: `PUT /api/v1/wallets/:id/patrimonies/:id`
 - **Description**: Manage manual patrimony records per wallet. All monetary values are stored as integer cents. The `type` must be one of: `stocks`, `fiis`, `fixed_income`, `emergency_reserve`, `liquid_cash`.
 
 ### Assets
-- **URL**: `GET /api/v1/wallets/:walletId/assets?type=&start_date=&end_date=`
-- **URL**: `POST /api/v1/wallets/:walletId/assets`
-- **URL**: `PUT /api/v1/wallets/:walletId/assets/:id`
-- **URL**: `DELETE /api/v1/wallets/:walletId/assets/:id`
+- **URL**: `GET /api/v1/wallets/:id/assets?type=&start_date=&end_date=`
+- **URL**: `POST /api/v1/wallets/:id/assets`
+- **URL**: `PUT /api/v1/wallets/:id/assets/:id`
+- **URL**: `DELETE /api/v1/wallets/:id/assets/:id`
 - **Description**: Manage individual asset launches (investments) per wallet. Each asset records a date, description, type and amount (integer cents). Creating, updating or deleting an asset automatically recalculates the corresponding patrimony record via `SUM(amount)` within the same transaction. Listing supports optional filters: `type`, `start_date` (inclusive, `YYYY-MM-DD`) and `end_date` (inclusive, `YYYY-MM-DD`). When both dates are provided, `start_date <= end_date` is enforced.
+
+### Stocks
+- **URL**: `GET /api/v1/stocks`
+- **URL**: `GET /api/v1/stocks/:ticker`
+- **Description**: Read-only catalog of B3 stocks. The catalog is populated via `make seed-stock` and is not mutable through the API.
+
+### Seed
+- **Command**: `make seed-stock`
+- **Description**: Idempotently seeds the B3 blue-chip catalog into the `stocks` table. Repeating the command does not duplicate or overwrite manual edits.
+- **Force overwrite**: `make seed-stock ARGS="--force"`
 
 For detailed request/response schemas see `docs/api.md`.
 
@@ -173,6 +183,8 @@ For detailed request/response schemas see `docs/api.md`.
 | `make migrate` | Run database migrations |
 | `make rollback` | Rollback last migration |
 | `make migrate-create name=<name>` | Create new migration |
+| `make seed-stock` | Seed the B3 stocks catalog (idempotent) |
+| `make seed-stock ARGS="--force"` | Force-overwrite existing stocks catalog |
 | `make clean` | Remove binaries and coverage files |
 
 ---

@@ -10,7 +10,7 @@ import (
 
 func WalletMiddleware(service wallet.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		walletID := c.Param("walletId")
+		walletID := c.Param("id")
 		if walletID == "" {
 			c.JSON(http.StatusNotFound, api.Response[interface{}]{
 				Error: &api.APIError{
