@@ -9,6 +9,7 @@ import (
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
 	"github.com/opinedajr/micro-investing/internal/infrastructure/database"
 	"github.com/opinedajr/micro-investing/internal/patrimony"
+	"github.com/opinedajr/micro-investing/internal/position"
 	"github.com/opinedajr/micro-investing/internal/shared/config"
 	sloglogger "github.com/opinedajr/micro-investing/internal/shared/logger"
 	"github.com/opinedajr/micro-investing/internal/stock"
@@ -30,6 +31,7 @@ type RepositoryDependencies struct {
 	patrimonyRepository patrimony.PatrimonyRepository
 	assetRepository     patrimony.AssetRepository
 	stockRepository     stock.Repository
+	positionRepository  position.Repository
 }
 
 type HandlerDependencies struct {
@@ -37,6 +39,7 @@ type HandlerDependencies struct {
 	walletHandler      *wallet.Handler
 	patrimonyHandler   *patrimony.Handler
 	stockHandler       *stock.Handler
+	positionHandler    *position.Handler
 }
 
 type ServiceDependencies struct {
@@ -44,6 +47,7 @@ type ServiceDependencies struct {
 	walletService      wallet.Service
 	patrimonyService   patrimony.Service
 	stockService       stock.Service
+	positionService    position.Service
 }
 
 func NewContainer() *Container {
@@ -183,4 +187,25 @@ func (c *Container) StockHandler() *stock.Handler {
 		c.handlers.stockHandler = stock.NewHandler(c.StockService())
 	}
 	return c.handlers.stockHandler
+}
+
+func (c *Container) PositionRepository() position.Repository {
+	if c.repositories.positionRepository == nil {
+		c.repositories.positionRepository = position.NewSQLiteRepository(c.DB())
+	}
+	return c.repositories.positionRepository
+}
+
+func (c *Container) PositionService() position.Service {
+	if c.services.positionService == nil {
+		c.services.positionService = position.NewService(c.PositionRepository(), c.StockRepository(), c.Logger())
+	}
+	return c.services.positionService
+}
+
+func (c *Container) PositionHandler() *position.Handler {
+	if c.handlers.positionHandler == nil {
+		c.handlers.positionHandler = position.NewHandler(c.PositionService())
+	}
+	return c.handlers.positionHandler
 }

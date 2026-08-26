@@ -7,6 +7,7 @@ import (
 	"github.com/opinedajr/micro-investing/internal/di"
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
 	"github.com/opinedajr/micro-investing/internal/patrimony"
+	"github.com/opinedajr/micro-investing/internal/position"
 	"github.com/opinedajr/micro-investing/internal/stock"
 	"github.com/opinedajr/micro-investing/internal/wallet"
 )
@@ -21,6 +22,7 @@ func main() {
 	wallet.RegisterRoutes(v1, container.WalletHandler())
 	patrimony.RegisterRoutes(v1, container.PatrimonyHandler(), container.WalletService())
 	stock.RegisterRoutes(v1, container.StockHandler())
+	position.RegisterRoutes(v1, container.PositionHandler(), container.WalletService())
 
 	log.Fatal(r.Run(":" + port))
 }
