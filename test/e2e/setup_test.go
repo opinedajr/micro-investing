@@ -23,6 +23,7 @@ import (
 	"github.com/opinedajr/micro-investing/internal/di"
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
 	"github.com/opinedajr/micro-investing/internal/patrimony"
+	"github.com/opinedajr/micro-investing/internal/position"
 	"github.com/opinedajr/micro-investing/internal/stock"
 	"github.com/opinedajr/micro-investing/internal/wallet"
 )
@@ -82,6 +83,7 @@ func (s *E2ESuite) SetupSuite() {
 	wallet.RegisterRoutes(v1, s.container.WalletHandler())
 	patrimony.RegisterRoutes(v1, s.container.PatrimonyHandler(), s.container.WalletService())
 	stock.RegisterRoutes(v1, s.container.StockHandler())
+	position.RegisterRoutes(v1, s.container.PositionHandler(), s.container.WalletService())
 
 	s.server = httptest.NewServer(r)
 
@@ -113,4 +115,8 @@ func (s *E2ESuite) SetupTest() {
 	s.Require().NoError(err, "falha ao limpar tabela patrimonies")
 	err = s.container.DB().Exec("DELETE FROM wallets;").Error
 	s.Require().NoError(err, "falha ao limpar tabela wallets")
+	err = s.container.DB().Exec("DELETE FROM positions;").Error
+	s.Require().NoError(err, "falha ao limpar tabela positions")
+	err = s.container.DB().Exec("DELETE FROM stocks_current_prices;").Error
+	s.Require().NoError(err, "falha ao limpar tabela stocks_current_prices")
 }

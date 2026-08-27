@@ -304,3 +304,60 @@ Error response:
 - **Command**: `make seed-stock`
 - **Description**: Idempotently seeds ~29 B3 blue-chip stocks. Repeating the command does not duplicate rows or overwrite manual edits.
 - **Force overwrite**: `make seed-stock ARGS="--force"`
+
+---
+
+## Positions
+
+Stock positions inside a wallet. All monetary values are integer cents (e.g. `5000` means R$ 50,00). Percentages are returned as `float64`.
+
+When a position is created, `ConsolidateByWallet` recalculates every position of the wallet in the same transaction, deriving:
+
+- `invested` = `quantity` * `average_price`
+- `balance` = `quantity` * `current_price`
+- `variation_value` = `balance` - `invested`
+- `variation_percent` = (`current_price` - `average_price`) / `average_price` * 100
+- `portfolio_percent` = `invested` / SUM(`invested` of wallet) * 100
+
+If a current price is missing from `stocks_current_prices`, it is treated as `0` (balance = 0, variation = -100%) and a warning is logged.
+
+### Create Position
+- **URL**: `POST /api/v1/wallets/:id/positions`
+- **Request Body**:
+
+```json
+{
+  "stock_id": "stock-uuid",
+  "quantity": 100,
+  "average_price": 5000
+}
+```
+
+- **Response**: `201 Created`
+
+```json
+{
+  "data": {
+    "id": "position-id",
+    "wallet_id": "wallet-id",
+    "stock_id": "stock-uuid",
+    "quantity": 100,
+    "average_price": 5000,
+    "current_price": 7500,
+    "invested": 500000,
+    "balance": 750000,
+    "variation_value": 250000,
+    "variation_percent": 50,
+    "portfolio_percent": 100,
+    "created_at": "2026-08-26T12:00:00Z",
+    "updated_at": "2026-08-26T12:00:00Z"
+  }
+}
+```
+
+- **Errors**:
+  - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
+  - `404 Not Found` (`STOCK_NOT_FOUND`): `stock_id` does not exist in the catalog
+  - `409 Conflict` (`POSITION_ALREADY_EXISTS`): a position for the same wallet and stock already exists
+  - `422 Unprocessable Entity` (`VALIDATION_ERROR`): missing/invalid fields (`quantity` and `average_price` must be >= 1)
+  - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
