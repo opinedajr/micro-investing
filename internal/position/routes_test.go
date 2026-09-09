@@ -39,6 +39,59 @@ func (m *mockWalletServiceForRoutes) Delete(ctx context.Context, id string) erro
 func TestRegisterRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	t.Run("success - registers position list route under /api/v1/wallets/:id/positions", func(t *testing.T) {
+		mockSvc := &mockService{
+			listFunc: func(ctx context.Context, filter PositionFilter) ([]PositionOutput, error) {
+				return []PositionOutput{{ID: "p1", WalletID: filter.WalletID, StockID: "s1"}}, nil
+			},
+		}
+
+		handler := NewHandler(mockSvc)
+		walletService := &mockWalletServiceForRoutes{}
+
+		r := gin.New()
+		v1 := r.Group("/api/v1")
+		RegisterRoutes(v1, handler, walletService)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response api.Response[[]PositionOutput]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Len(t, response.Data, 1)
+		assert.Equal(t, "p1", response.Data[0].ID)
+	})
+
+	t.Run("success - registers position find route under /api/v1/wallets/:id/positions/:positionId", func(t *testing.T) {
+		mockSvc := &mockService{
+			findFunc: func(ctx context.Context, walletID string, id string) (*PositionOutput, error) {
+				return &PositionOutput{ID: id, WalletID: walletID, StockID: "s1"}, nil
+			},
+		}
+
+		handler := NewHandler(mockSvc)
+		walletService := &mockWalletServiceForRoutes{}
+
+		r := gin.New()
+		v1 := r.Group("/api/v1")
+		RegisterRoutes(v1, handler, walletService)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions/p1", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response api.Response[*PositionOutput]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "p1", response.Data.ID)
+	})
+
 	t.Run("success - registers position create route under /api/v1/wallets/:id/positions", func(t *testing.T) {
 		mockSvc := newMockServiceWithCreate(func(ctx context.Context, input CreatePositionInput) (*PositionOutput, error) {
 			return &PositionOutput{
