@@ -194,7 +194,7 @@ func (s *E2ESuite) TestPatrimony_List_Empty() {
 		Status(http.StatusOK).
 		JSON().Object()
 
-	obj.NotContainsKey("data")
+	obj.Value("data").Array().IsEmpty()
 }
 
 func (s *E2ESuite) TestPatrimony_List_FilterByType() {
