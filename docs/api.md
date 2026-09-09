@@ -321,6 +321,50 @@ When a position is created, `ConsolidateByWallet` recalculates every position of
 
 If a current price is missing from `stocks_current_prices`, it is treated as `0` (balance = 0, variation = -100%) and a warning is logged.
 
+### List Positions
+- **URL**: `GET /api/v1/wallets/:id/positions?ticker=&sort=`
+- **Query Parameters** (all optional):
+  - `ticker`: partial case-insensitive match against the stock ticker (e.g. `petr` matches `PETR4`)
+  - `sort`: order by `ticker`, `rank`, `invested`, `variation_percent` or `portfolio_percent`. Prefix `-` for descending. Default is `balance DESC` (largest balances first). Values outside the whitelist fall back to the default without raising an error.
+- **Response**: `200 OK`
+
+```json
+{
+  "data": [
+    {
+      "id": "position-id",
+      "wallet_id": "wallet-id",
+      "stock_id": "stock-uuid",
+      "quantity": 100,
+      "average_price": 5000,
+      "current_price": 7500,
+      "invested": 500000,
+      "balance": 750000,
+      "variation_value": 250000,
+      "variation_percent": 50,
+      "portfolio_percent": 100,
+      "created_at": "2026-08-26T12:00:00Z",
+      "updated_at": "2026-08-26T12:00:00Z"
+    }
+  ]
+}
+```
+
+An empty wallet returns `200 OK` with `{"data":[]}`.
+
+- **Errors**:
+  - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
+  - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
+
+### Find Position
+- **URL**: `GET /api/v1/wallets/:id/positions/:positionId`
+- **Response**: `200 OK` with the same position payload as List, or `404 Not Found` (`POSITION_NOT_FOUND`) if the position does not exist or does not belong to the wallet in the path.
+
+- **Errors**:
+  - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
+  - `404 Not Found` (`POSITION_NOT_FOUND`): position `:positionId` not found or belongs to another wallet
+  - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
+
 ### Create Position
 - **URL**: `POST /api/v1/wallets/:id/positions`
 - **Request Body**:
