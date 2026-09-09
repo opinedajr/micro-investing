@@ -21,6 +21,44 @@ func NewHandler(service Service) *Handler {
 	}
 }
 
+func (h *Handler) List(c *gin.Context) {
+	filter := PositionFilter{
+		WalletID: c.Param("id"),
+		Ticker:   c.Query("ticker"),
+		Sort:     c.Query("sort"),
+	}
+
+	outputs, err := h.service.List(c.Request.Context(), filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "INTERNAL_ERROR",
+				Message: "Internal server error",
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, api.Response[[]PositionOutput]{
+		Data: outputs,
+	})
+}
+
+func (h *Handler) Find(c *gin.Context) {
+	walletID := c.Param("id")
+	id := c.Param("positionId")
+
+	output, err := h.service.Find(c.Request.Context(), walletID, id)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, api.Response[*PositionOutput]{
+		Data: output,
+	})
+}
+
 func (h *Handler) Create(c *gin.Context) {
 	var input CreatePositionInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -59,6 +97,13 @@ func (h *Handler) Create(c *gin.Context) {
 
 func (h *Handler) handleServiceError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, ErrPositionNotFound):
+		c.JSON(http.StatusNotFound, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "POSITION_NOT_FOUND",
+				Message: "Position not found",
+			},
+		})
 	case errors.Is(err, ErrStockNotFound):
 		c.JSON(http.StatusNotFound, api.Response[interface{}]{
 			Error: &api.APIError{
