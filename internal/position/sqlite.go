@@ -4,9 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 )
+
+var sortColumnWhitelist = map[string]string{
+	"ticker":            "stocks.ticker",
+	"rank":              "stocks.rank",
+	"invested":          "positions.invested",
+	"variation_percent": "positions.variation_percent",
+	"portfolio_percent": "positions.portfolio_percent",
+}
 
 type SQLiteRepository struct {
 	db *gorm.DB
@@ -38,11 +47,34 @@ func (r *SQLiteRepository) FindByID(ctx context.Context, id string) (*Position, 
 
 func (r *SQLiteRepository) FindByFilter(ctx context.Context, filter PositionFilter) ([]Position, error) {
 	var positions []Position
-	err := r.txFromContext(ctx).
-		Where("wallet_id = ?", filter.WalletID).
-		Order("balance DESC").
-		Find(&positions).Error
+	query := r.txFromContext(ctx).
+		Table("positions").
+		Select("positions.*").
+		Joins("JOIN stocks ON stocks.id = positions.stock_id").
+		Where("positions.wallet_id = ?", filter.WalletID)
+
+	if filter.Ticker != "" {
+		query = query.Where("stocks.ticker LIKE UPPER(?)", "%"+filter.Ticker+"%")
+	}
+
+	query = query.Order(r.buildOrderClause(filter.Sort))
+	err := query.Find(&positions).Error
 	return positions, err
+}
+
+func (r *SQLiteRepository) buildOrderClause(sort string) string {
+	direction := "ASC"
+	if strings.HasPrefix(sort, "-") {
+		direction = "DESC"
+		sort = sort[1:]
+	}
+
+	column, ok := sortColumnWhitelist[sort]
+	if !ok {
+		return "positions.balance DESC"
+	}
+
+	return column + " " + direction
 }
 
 func (r *SQLiteRepository) FindByWalletAndStockID(ctx context.Context, walletID string, stockID string) (*Position, error) {

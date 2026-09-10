@@ -12,6 +12,8 @@ import (
 
 type Service interface {
 	Create(ctx context.Context, input CreatePositionInput) (*PositionOutput, error)
+	List(ctx context.Context, filter PositionFilter) ([]PositionOutput, error)
+	Find(ctx context.Context, walletID string, id string) (*PositionOutput, error)
 	ConsolidateByWallet(ctx context.Context, walletID string) error
 }
 
@@ -29,6 +31,32 @@ func NewService(repo Repository, stockRepo stock.Repository, logger logger.Logge
 		validator: validator.New(),
 		logger:    logger,
 	}
+}
+
+func (s *positionService) List(ctx context.Context, filter PositionFilter) ([]PositionOutput, error) {
+	positions, err := s.repo.FindByFilter(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	outputs := make([]PositionOutput, 0, len(positions))
+	for i := range positions {
+		outputs = append(outputs, *toPositionOutput(&positions[i]))
+	}
+	return outputs, nil
+}
+
+func (s *positionService) Find(ctx context.Context, walletID string, id string) (*PositionOutput, error) {
+	position, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if position.WalletID != walletID {
+		return nil, ErrPositionNotFound
+	}
+
+	return toPositionOutput(position), nil
 }
 
 func (s *positionService) Create(ctx context.Context, input CreatePositionInput) (*PositionOutput, error) {

@@ -25,4 +25,6 @@ type PositionOutput struct {
 
 type PositionFilter struct {
 	WalletID string
+	Ticker   string
+	Sort     string
 }

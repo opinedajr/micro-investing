@@ -223,6 +223,179 @@ func TestHandler_Create(t *testing.T) {
 	})
 }
 
+func TestHandler_List(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("success - returns positions list", func(t *testing.T) {
+		mockSvc := &mockService{
+			listFunc: func(ctx context.Context, filter PositionFilter) ([]PositionOutput, error) {
+				return []PositionOutput{
+					{ID: "p1", WalletID: filter.WalletID, StockID: "s1", Balance: 10000, Invested: 10000},
+					{ID: "p2", WalletID: filter.WalletID, StockID: "s2", Balance: 20000, Invested: 20000},
+				}, nil
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
+
+		handler.List(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response api.Response[[]PositionOutput]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Len(t, response.Data, 2)
+		assert.Equal(t, "p1", response.Data[0].ID)
+	})
+
+	t.Run("success - applies ticker filter and sort", func(t *testing.T) {
+		mockSvc := &mockService{
+			listFunc: func(ctx context.Context, filter PositionFilter) ([]PositionOutput, error) {
+				assert.Equal(t, "wallet-id", filter.WalletID)
+				assert.Equal(t, "petr", filter.Ticker)
+				assert.Equal(t, "-balance", filter.Sort)
+				return []PositionOutput{{ID: "p1", WalletID: filter.WalletID, StockID: "s1"}}, nil
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions?ticker=petr&sort=-balance", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
+
+		handler.List(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("success - returns empty list", func(t *testing.T) {
+		mockSvc := &mockService{
+			listFunc: func(ctx context.Context, filter PositionFilter) ([]PositionOutput, error) {
+				return []PositionOutput{}, nil
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
+
+		handler.List(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"data":[]`)
+	})
+
+	t.Run("error - returns 500 when service fails", func(t *testing.T) {
+		mockSvc := &mockService{
+			listFunc: func(ctx context.Context, filter PositionFilter) ([]PositionOutput, error) {
+				return nil, errors.New("database error")
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}}
+
+		handler.List(c)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "INTERNAL_ERROR", response.Error.Code)
+	})
+}
+
+func TestHandler_Find(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("success - returns position detail", func(t *testing.T) {
+		mockSvc := &mockService{
+			findFunc: func(ctx context.Context, walletID string, id string) (*PositionOutput, error) {
+				return &PositionOutput{
+					ID:       id,
+					WalletID: walletID,
+					StockID:  "s1",
+					Balance:  10000,
+					Invested: 10000,
+				}, nil
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions/p1", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}, {Key: "positionId", Value: "p1"}}
+
+		handler.Find(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response api.Response[*PositionOutput]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "p1", response.Data.ID)
+	})
+
+	t.Run("error - returns 404 when position not found", func(t *testing.T) {
+		mockSvc := &mockService{
+			findFunc: func(ctx context.Context, walletID string, id string) (*PositionOutput, error) {
+				return nil, ErrPositionNotFound
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions/missing", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}, {Key: "positionId", Value: "missing"}}
+
+		handler.Find(c)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "POSITION_NOT_FOUND", response.Error.Code)
+	})
+
+	t.Run("error - returns 500 for internal server error", func(t *testing.T) {
+		mockSvc := &mockService{
+			findFunc: func(ctx context.Context, walletID string, id string) (*PositionOutput, error) {
+				return nil, errors.New("database error")
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions/p1", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}, {Key: "positionId", Value: "p1"}}
+
+		handler.Find(c)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "INTERNAL_ERROR", response.Error.Code)
+	})
+}
+
 func TestHandler_buildValidationDetails(t *testing.T) {
 	v := validator.New()
 	type input struct {

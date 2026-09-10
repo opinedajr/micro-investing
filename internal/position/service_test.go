@@ -270,6 +270,76 @@ func TestService_Create(t *testing.T) {
 	})
 }
 
+func TestService_List(t *testing.T) {
+	t.Run("success - returns positions for wallet ordered by balance desc", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{ID: "p1", WalletID: "wallet-id", StockID: "s1", Balance: 10000, Invested: 10000, PortfolioPercent: 100}
+		positionRepo.positions["p2"] = &Position{ID: "p2", WalletID: "wallet-id", StockID: "s2", Balance: 30000, Invested: 20000, PortfolioPercent: 100}
+		positionRepo.positions["p3"] = &Position{ID: "p3", WalletID: "other-wallet", StockID: "s3", Balance: 50000, Invested: 50000, PortfolioPercent: 100}
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		outputs, err := service.List(context.Background(), PositionFilter{WalletID: "wallet-id"})
+
+		assert.NoError(t, err)
+		assert.Len(t, outputs, 2)
+		assert.ElementsMatch(t, []string{"p1", "p2"}, []string{outputs[0].ID, outputs[1].ID})
+	})
+
+	t.Run("success - returns empty slice when no positions", func(t *testing.T) {
+		service := NewService(newMemoryPositionRepository(), &mockStockRepository{}, noopLogger{})
+		outputs, err := service.List(context.Background(), PositionFilter{WalletID: "wallet-id"})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, outputs)
+		assert.Empty(t, outputs)
+	})
+
+	t.Run("error - returns error when repository fails", func(t *testing.T) {
+		positionRepo := &mockPositionRepository{
+			findByFilterFunc: func(ctx context.Context, filter PositionFilter) ([]Position, error) {
+				return nil, errors.New("database error")
+			},
+		}
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		_, err := service.List(context.Background(), PositionFilter{WalletID: "wallet-id"})
+
+		assert.Error(t, err)
+	})
+}
+
+func TestService_Find(t *testing.T) {
+	t.Run("success - returns position when it belongs to wallet", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{ID: "p1", WalletID: "wallet-id", StockID: "s1", Balance: 10000, Invested: 10000}
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		output, err := service.Find(context.Background(), "wallet-id", "p1")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, output)
+		assert.Equal(t, "p1", output.ID)
+		assert.Equal(t, "wallet-id", output.WalletID)
+	})
+
+	t.Run("error - returns not found when position belongs to another wallet", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{ID: "p1", WalletID: "other-wallet", StockID: "s1", Balance: 10000, Invested: 10000}
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		_, err := service.Find(context.Background(), "wallet-id", "p1")
+
+		assert.ErrorIs(t, err, ErrPositionNotFound)
+	})
+
+	t.Run("error - returns not found when position does not exist", func(t *testing.T) {
+		service := NewService(newMemoryPositionRepository(), &mockStockRepository{}, noopLogger{})
+		_, err := service.Find(context.Background(), "wallet-id", "missing-id")
+
+		assert.ErrorIs(t, err, ErrPositionNotFound)
+	})
+}
+
 func TestService_ConsolidateByWallet(t *testing.T) {
 	t.Run("success - recalculates derivatives and portfolio percent for multiple positions", func(t *testing.T) {
 		positionRepo := newMemoryPositionRepository()

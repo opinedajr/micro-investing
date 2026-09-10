@@ -163,8 +163,10 @@ Commands:
 - **Description**: Read-only catalog of B3 stocks. The catalog is populated via `make seed-stock` and is not mutable through the API.
 
 ### Positions
+- **URL**: `GET /api/v1/wallets/:id/positions?ticker=&sort=`
+- **URL**: `GET /api/v1/wallets/:id/positions/:positionId`
 - **URL**: `POST /api/v1/wallets/:id/positions`
-- **Description**: Create a stock position inside a wallet. The request requires only `stock_id`, `quantity` and `average_price` (all monetary values in integer cents). The response includes the derived fields `current_price`, `invested`, `balance`, `variation_value`, `variation_percent` and `portfolio_percent`. Creating a position triggers `ConsolidateByWallet`, which recalculates all positions of the wallet in the same transaction. Returns `404 Not Found` if the wallet or stock does not exist, `409 Conflict` if a position for the same stock already exists in the wallet, and `422 Unprocessable Entity` for invalid payloads.
+- **Description**: Create and query stock positions inside a wallet. The create request requires only `stock_id`, `quantity` and `average_price` (all monetary values in integer cents). The response includes the derived fields `current_price`, `invested`, `balance`, `variation_value`, `variation_percent` and `portfolio_percent`. Creating a position triggers `ConsolidateByWallet`, which recalculates all positions of the wallet in the same transaction. List returns an empty array (`[]`) when there are no positions, ordered by `balance DESC` by default. Optional query parameters: `ticker` (partial case-insensitive match) and `sort` (`ticker`, `rank`, `invested`, `variation_percent`, `portfolio_percent`; prefix `-` for descending). Invalid `sort` values fall back to the default ordering. Returns `404 Not Found` if the wallet or position/stock does not exist, `409 Conflict` if a position for the same stock already exists in the wallet, and `422 Unprocessable Entity` for invalid payloads.
 
 ### Seed
 - **Command**: `make seed-stock`
