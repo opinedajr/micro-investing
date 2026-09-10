@@ -131,4 +131,44 @@ func TestRegisterRoutes(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "position-id", response.Data.ID)
 	})
+
+	t.Run("success - registers position update route under /api/v1/wallets/:id/positions/:positionId", func(t *testing.T) {
+		mockSvc := &mockService{
+			updateFunc: func(ctx context.Context, input UpdatePositionInput) (*PositionOutput, error) {
+				return &PositionOutput{
+					ID:           input.PositionID,
+					WalletID:     input.WalletID,
+					StockID:      "s1",
+					Quantity:     input.Quantity,
+					AveragePrice: input.AveragePrice,
+					UpdatedAt:    "2026-08-26T12:00:00Z",
+				}, nil
+			},
+		}
+
+		handler := NewHandler(mockSvc)
+		walletService := &mockWalletServiceForRoutes{}
+
+		r := gin.New()
+		v1 := r.Group("/api/v1")
+		RegisterRoutes(v1, handler, walletService)
+
+		body := map[string]interface{}{
+			"quantity":      20,
+			"average_price": 2000,
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("PUT", "/api/v1/wallets/wallet-id/positions/p1", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response api.Response[*PositionOutput]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "p1", response.Data.ID)
+	})
 }

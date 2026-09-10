@@ -14,4 +14,5 @@ func RegisterRoutes(rg *gin.RouterGroup, h *Handler, walletService wallet.Servic
 	positions.GET("", h.List)
 	positions.GET("/:positionId", h.Find)
 	positions.POST("", h.Create)
+	positions.PUT("/:positionId", h.Update)
 }
