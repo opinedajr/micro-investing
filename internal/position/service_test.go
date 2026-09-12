@@ -340,6 +340,154 @@ func TestService_Find(t *testing.T) {
 	})
 }
 
+func TestService_Update(t *testing.T) {
+	t.Run("success - overwrites quantity and average_price", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{
+			ID: "p1", WalletID: "wallet-id", StockID: "s1", Quantity: 10, AveragePrice: 1000,
+		}
+		positionRepo.prices["s1"] = 2000
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		output, err := service.Update(context.Background(), UpdatePositionInput{
+			WalletID:     "wallet-id",
+			PositionID:   "p1",
+			Quantity:     50,
+			AveragePrice: 1500,
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, output)
+		assert.Equal(t, int64(50), output.Quantity)
+		assert.Equal(t, int64(1500), output.AveragePrice)
+		assert.Equal(t, int64(75000), output.Invested)
+		assert.Equal(t, int64(100000), output.Balance)
+	})
+
+	t.Run("success - redistributes portfolio_percent across wallet positions", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{
+			ID: "p1", WalletID: "wallet-id", StockID: "s1", Quantity: 100, AveragePrice: 1000,
+		}
+		positionRepo.positions["p2"] = &Position{
+			ID: "p2", WalletID: "wallet-id", StockID: "s2", Quantity: 100, AveragePrice: 1000,
+		}
+		positionRepo.prices["s1"] = 1000
+		positionRepo.prices["s2"] = 1000
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		_, err := service.Update(context.Background(), UpdatePositionInput{
+			WalletID:     "wallet-id",
+			PositionID:   "p1",
+			Quantity:     200,
+			AveragePrice: 1000,
+		})
+
+		assert.NoError(t, err)
+		assert.InDelta(t, 66.6667, positionRepo.positions["p1"].PortfolioPercent, 0.001)
+		assert.InDelta(t, 33.3333, positionRepo.positions["p2"].PortfolioPercent, 0.001)
+	})
+
+	t.Run("success - keeps stock_id immutable", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{
+			ID: "p1", WalletID: "wallet-id", StockID: "s1", Quantity: 10, AveragePrice: 1000,
+		}
+		positionRepo.prices["s1"] = 1000
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		output, err := service.Update(context.Background(), UpdatePositionInput{
+			WalletID:     "wallet-id",
+			PositionID:   "p1",
+			Quantity:     20,
+			AveragePrice: 2000,
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, "s1", output.StockID)
+	})
+
+	t.Run("error - returns not found when position belongs to another wallet", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{
+			ID: "p1", WalletID: "other-wallet", StockID: "s1", Quantity: 10, AveragePrice: 1000,
+		}
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		_, err := service.Update(context.Background(), UpdatePositionInput{
+			WalletID:     "wallet-id",
+			PositionID:   "p1",
+			Quantity:     20,
+			AveragePrice: 2000,
+		})
+
+		assert.ErrorIs(t, err, ErrPositionNotFound)
+	})
+
+	t.Run("error - returns not found when position does not exist", func(t *testing.T) {
+		service := NewService(newMemoryPositionRepository(), &mockStockRepository{}, noopLogger{})
+		_, err := service.Update(context.Background(), UpdatePositionInput{
+			WalletID:     "wallet-id",
+			PositionID:   "missing-id",
+			Quantity:     20,
+			AveragePrice: 2000,
+		})
+
+		assert.ErrorIs(t, err, ErrPositionNotFound)
+	})
+
+	t.Run("error - returns validation error for invalid quantity", func(t *testing.T) {
+		service := NewService(newMemoryPositionRepository(), &mockStockRepository{}, noopLogger{})
+		_, err := service.Update(context.Background(), UpdatePositionInput{
+			WalletID:     "wallet-id",
+			PositionID:   "p1",
+			Quantity:     0,
+			AveragePrice: 1000,
+		})
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - returns validation error for invalid average_price", func(t *testing.T) {
+		service := NewService(newMemoryPositionRepository(), &mockStockRepository{}, noopLogger{})
+		_, err := service.Update(context.Background(), UpdatePositionInput{
+			WalletID:     "wallet-id",
+			PositionID:   "p1",
+			Quantity:     10,
+			AveragePrice: 0,
+		})
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - returns error when consolidation fails", func(t *testing.T) {
+		positionRepo := &mockPositionRepository{
+			findByIDFunc: func(ctx context.Context, id string) (*Position, error) {
+				return &Position{ID: id, WalletID: "wallet-id", StockID: "s1", Quantity: 10, AveragePrice: 1000}, nil
+			},
+			runInTransactionFunc: func(ctx context.Context, fn func(ctx context.Context) error) error {
+				return fn(ctx)
+			},
+			updateFunc: func(ctx context.Context, position *Position) error {
+				return nil
+			},
+			findByFilterFunc: func(ctx context.Context, filter PositionFilter) ([]Position, error) {
+				return nil, errors.New("database error")
+			},
+		}
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		_, err := service.Update(context.Background(), UpdatePositionInput{
+			WalletID:     "wallet-id",
+			PositionID:   "p1",
+			Quantity:     20,
+			AveragePrice: 2000,
+		})
+
+		assert.Error(t, err)
+	})
+}
+
 func TestService_ConsolidateByWallet(t *testing.T) {
 	t.Run("success - recalculates derivatives and portfolio percent for multiple positions", func(t *testing.T) {
 		positionRepo := newMemoryPositionRepository()

@@ -223,6 +223,161 @@ func TestHandler_Create(t *testing.T) {
 	})
 }
 
+func TestHandler_Update(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("success - updates position and returns derived values", func(t *testing.T) {
+		mockSvc := &mockService{
+			updateFunc: func(ctx context.Context, input UpdatePositionInput) (*PositionOutput, error) {
+				assert.Equal(t, "wallet-id", input.WalletID)
+				assert.Equal(t, "p1", input.PositionID)
+				assert.Equal(t, int64(200), input.Quantity)
+				assert.Equal(t, int64(6000), input.AveragePrice)
+				return &PositionOutput{
+					ID:               "p1",
+					WalletID:         input.WalletID,
+					StockID:          "s1",
+					Quantity:         input.Quantity,
+					AveragePrice:     input.AveragePrice,
+					CurrentPrice:     7500,
+					Invested:         1200000,
+					Balance:          1500000,
+					VariationValue:   300000,
+					VariationPercent: 25,
+					PortfolioPercent: 60,
+					CreatedAt:        "2026-08-26T12:00:00Z",
+					UpdatedAt:        "2026-08-26T12:00:00Z",
+				}, nil
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		body := map[string]interface{}{
+			"quantity":      200,
+			"average_price": 6000,
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-id/positions/p1", bytes.NewBuffer(jsonBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}, {Key: "positionId", Value: "p1"}}
+
+		handler.Update(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response api.Response[*PositionOutput]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "p1", response.Data.ID)
+		assert.Equal(t, int64(200), response.Data.Quantity)
+		assert.Equal(t, int64(6000), response.Data.AveragePrice)
+	})
+
+	t.Run("error - returns 422 for invalid json", func(t *testing.T) {
+		handler := NewHandler(&mockService{})
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-id/positions/p1", bytes.NewBuffer([]byte("{invalid")))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}, {Key: "positionId", Value: "p1"}}
+
+		handler.Update(c)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns 422 for validation error", func(t *testing.T) {
+		handler := NewHandler(&mockService{})
+
+		body := map[string]interface{}{"quantity": 0}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-id/positions/p1", bytes.NewBuffer(jsonBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}, {Key: "positionId", Value: "p1"}}
+
+		handler.Update(c)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns 404 when position not found", func(t *testing.T) {
+		mockSvc := &mockService{
+			updateFunc: func(ctx context.Context, input UpdatePositionInput) (*PositionOutput, error) {
+				return nil, ErrPositionNotFound
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		body := map[string]interface{}{
+			"quantity":      10,
+			"average_price": 1000,
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-id/positions/missing", bytes.NewBuffer(jsonBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}, {Key: "positionId", Value: "missing"}}
+
+		handler.Update(c)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "POSITION_NOT_FOUND", response.Error.Code)
+	})
+
+	t.Run("error - returns 500 for internal server error", func(t *testing.T) {
+		mockSvc := &mockService{
+			updateFunc: func(ctx context.Context, input UpdatePositionInput) (*PositionOutput, error) {
+				return nil, errors.New("database error")
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		body := map[string]interface{}{
+			"quantity":      10,
+			"average_price": 1000,
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("PUT", "/api/v1/wallets/wallet-id/positions/p1", bytes.NewBuffer(jsonBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}, {Key: "positionId", Value: "p1"}}
+
+		handler.Update(c)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "INTERNAL_ERROR", response.Error.Code)
+	})
+}
+
 func TestHandler_List(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

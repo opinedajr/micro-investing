@@ -12,6 +12,7 @@ import (
 
 type Service interface {
 	Create(ctx context.Context, input CreatePositionInput) (*PositionOutput, error)
+	Update(ctx context.Context, input UpdatePositionInput) (*PositionOutput, error)
 	List(ctx context.Context, filter PositionFilter) ([]PositionOutput, error)
 	Find(ctx context.Context, walletID string, id string) (*PositionOutput, error)
 	ConsolidateByWallet(ctx context.Context, walletID string) error
@@ -105,6 +106,44 @@ func (s *positionService) Create(ctx context.Context, input CreatePositionInput)
 	}
 
 	return toPositionOutput(created), nil
+}
+
+func (s *positionService) Update(ctx context.Context, input UpdatePositionInput) (*PositionOutput, error) {
+	if err := s.validator.Struct(&input); err != nil {
+		return nil, err
+	}
+
+	var updated *Position
+	if err := s.repo.RunInTransaction(ctx, func(txCtx context.Context) error {
+		position, err := s.repo.FindByID(txCtx, input.PositionID)
+		if err != nil {
+			return err
+		}
+
+		if position.WalletID != input.WalletID {
+			return ErrPositionNotFound
+		}
+
+		position.Quantity = input.Quantity
+		position.AveragePrice = input.AveragePrice
+
+		if err := s.repo.Update(txCtx, position); err != nil {
+			return err
+		}
+		if err := s.consolidateInTransaction(txCtx, input.WalletID); err != nil {
+			return err
+		}
+		refreshed, err := s.repo.FindByID(txCtx, input.PositionID)
+		if err != nil {
+			return err
+		}
+		updated = refreshed
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return toPositionOutput(updated), nil
 }
 
 func (s *positionService) ConsolidateByWallet(ctx context.Context, walletID string) error {

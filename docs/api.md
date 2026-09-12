@@ -405,3 +405,44 @@ An empty wallet returns `200 OK` with `{"data":[]}`.
   - `409 Conflict` (`POSITION_ALREADY_EXISTS`): a position for the same wallet and stock already exists
   - `422 Unprocessable Entity` (`VALIDATION_ERROR`): missing/invalid fields (`quantity` and `average_price` must be >= 1)
   - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
+
+### Update Position
+- **URL**: `PUT /api/v1/wallets/:id/positions/:positionId`
+- **Request Body**:
+
+```json
+{
+  "quantity": 200,
+  "average_price": 6000
+}
+```
+
+- **Response**: `200 OK`
+
+```json
+{
+  "data": {
+    "id": "position-id",
+    "wallet_id": "wallet-id",
+    "stock_id": "stock-uuid",
+    "quantity": 200,
+    "average_price": 6000,
+    "current_price": 7500,
+    "invested": 1200000,
+    "balance": 1500000,
+    "variation_value": 300000,
+    "variation_percent": 25,
+    "portfolio_percent": 60,
+    "created_at": "2026-08-26T12:00:00Z",
+    "updated_at": "2026-08-26T12:00:00Z"
+  }
+}
+```
+
+Behavior: `average_price` is overwritten by the input value (snapshot, not weighted average). `stock_id` cannot be changed through this endpoint; to switch tickers, delete the position and create a new one. The update triggers `ConsolidateByWallet` in the same transaction, recalculating all positions of the wallet.
+
+- **Errors**:
+  - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
+  - `404 Not Found` (`POSITION_NOT_FOUND`): position `:positionId` not found or belongs to another wallet
+  - `422 Unprocessable Entity` (`VALIDATION_ERROR`): missing/invalid fields (`quantity` and `average_price` must be >= 1)
+  - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error

@@ -95,6 +95,43 @@ func (h *Handler) Create(c *gin.Context) {
 	})
 }
 
+func (h *Handler) Update(c *gin.Context) {
+	var input UpdatePositionInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "Invalid JSON format",
+			},
+		})
+		return
+	}
+
+	if err := h.validator.Struct(&input); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "Validation failed",
+				Details: buildValidationDetails(err),
+			},
+		})
+		return
+	}
+
+	input.WalletID = c.Param("id")
+	input.PositionID = c.Param("positionId")
+
+	output, err := h.service.Update(c.Request.Context(), input)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, api.Response[*PositionOutput]{
+		Data: output,
+	})
+}
+
 func (h *Handler) handleServiceError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrPositionNotFound):

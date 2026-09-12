@@ -7,6 +7,7 @@ import (
 
 type mockService struct {
 	createFunc              func(ctx context.Context, input CreatePositionInput) (*PositionOutput, error)
+	updateFunc              func(ctx context.Context, input UpdatePositionInput) (*PositionOutput, error)
 	listFunc                func(ctx context.Context, filter PositionFilter) ([]PositionOutput, error)
 	findFunc                func(ctx context.Context, walletID string, id string) (*PositionOutput, error)
 	consolidateByWalletFunc func(ctx context.Context, walletID string) error
@@ -15,6 +16,13 @@ type mockService struct {
 func (m *mockService) Create(ctx context.Context, input CreatePositionInput) (*PositionOutput, error) {
 	if m.createFunc != nil {
 		return m.createFunc(ctx, input)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockService) Update(ctx context.Context, input UpdatePositionInput) (*PositionOutput, error) {
+	if m.updateFunc != nil {
+		return m.updateFunc(ctx, input)
 	}
 	return nil, errors.New("not implemented")
 }

@@ -7,6 +7,13 @@ type CreatePositionInput struct {
 	AveragePrice int64  `json:"average_price" validate:"required,min=1"`
 }
 
+type UpdatePositionInput struct {
+	WalletID     string `json:"-"`
+	PositionID   string `json:"-"`
+	Quantity     int64  `json:"quantity" validate:"required,min=1"`
+	AveragePrice int64  `json:"average_price" validate:"required,min=1"`
+}
+
 type PositionOutput struct {
 	ID               string  `json:"id"`
 	WalletID         string  `json:"wallet_id"`
