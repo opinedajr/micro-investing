@@ -3,12 +3,14 @@ package patrimony
 import "context"
 
 type mockPatrimonyRepository struct {
-	createFunc                  func(ctx context.Context, patrimony *Patrimony) error
-	updateFunc                  func(ctx context.Context, patrimony *Patrimony) error
-	findByIDFunc                func(ctx context.Context, id string) (*Patrimony, error)
-	findByFilterFunc            func(ctx context.Context, filter PatrimonyFilter) ([]Patrimony, error)
-	findByWalletYearMonthTypeFn func(ctx context.Context, walletID string, year int, month int, assetType AssetType) (*Patrimony, error)
-	runInTransactionFn          func(ctx context.Context, fn func(ctx context.Context) error) error
+	createFunc                   func(ctx context.Context, patrimony *Patrimony) error
+	updateFunc                   func(ctx context.Context, patrimony *Patrimony) error
+	findByIDFunc                 func(ctx context.Context, id string) (*Patrimony, error)
+	findByFilterFunc             func(ctx context.Context, filter PatrimonyFilter) ([]Patrimony, error)
+	findByWalletYearMonthTypeFn  func(ctx context.Context, walletID string, year int, month int, assetType AssetType) (*Patrimony, error)
+	findLatestMonthByWalletFunc  func(ctx context.Context, walletID string) (int, int, error)
+	sumByWalletYearMonthFunc     func(ctx context.Context, walletID string, year int, month int) ([]TypeAmount, error)
+	runInTransactionFn           func(ctx context.Context, fn func(ctx context.Context) error) error
 }
 
 func (m *mockPatrimonyRepository) Create(ctx context.Context, patrimony *Patrimony) error {
@@ -44,6 +46,20 @@ func (m *mockPatrimonyRepository) FindByWalletYearMonthType(ctx context.Context,
 		return m.findByWalletYearMonthTypeFn(ctx, walletID, year, month, assetType)
 	}
 	return nil, ErrPatrimonyNotFound
+}
+
+func (m *mockPatrimonyRepository) FindLatestMonthByWallet(ctx context.Context, walletID string) (int, int, error) {
+	if m.findLatestMonthByWalletFunc != nil {
+		return m.findLatestMonthByWalletFunc(ctx, walletID)
+	}
+	return 0, 0, nil
+}
+
+func (m *mockPatrimonyRepository) SumByWalletYearMonth(ctx context.Context, walletID string, year int, month int) ([]TypeAmount, error) {
+	if m.sumByWalletYearMonthFunc != nil {
+		return m.sumByWalletYearMonthFunc(ctx, walletID, year, month)
+	}
+	return nil, nil
 }
 
 func (m *mockPatrimonyRepository) RunInTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
