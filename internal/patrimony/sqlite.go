@@ -73,8 +73,10 @@ func (r *SQLitePatrimonyRepository) FindLatestMonthByWallet(ctx context.Context,
 	}
 	err := r.txFromContext(ctx).
 		Model(&Patrimony{}).
-		Select("MAX(year) AS year, MAX(month) AS month").
+		Select("year, month").
 		Where("wallet_id = ?", walletID).
+		Order("year DESC, month DESC").
+		Limit(1).
 		Scan(&result).Error
 	if err != nil {
 		return 0, 0, err
