@@ -20,6 +20,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
+	"github.com/opinedajr/micro-investing/internal/dashboard"
 	"github.com/opinedajr/micro-investing/internal/di"
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
 	"github.com/opinedajr/micro-investing/internal/patrimony"
@@ -84,6 +85,7 @@ func (s *E2ESuite) SetupSuite() {
 	patrimony.RegisterRoutes(v1, s.container.PatrimonyHandler(), s.container.WalletService())
 	stock.RegisterRoutes(v1, s.container.StockHandler())
 	position.RegisterRoutes(v1, s.container.PositionHandler(), s.container.WalletService())
+	dashboard.RegisterRoutes(v1, s.container.DashboardHandler(), s.container.WalletService())
 
 	s.server = httptest.NewServer(r)
 
