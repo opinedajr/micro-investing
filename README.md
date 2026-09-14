@@ -169,6 +169,10 @@ Commands:
 - **URL**: `PUT /api/v1/wallets/:id/positions/:positionId`
 - **Description**: Create and query stock positions inside a wallet. The create request requires only `stock_id`, `quantity` and `average_price` (all monetary values in integer cents). The update request accepts only `quantity` and `average_price`; `stock_id` is immutable, so changing the ticker requires deleting the position and creating a new one. The response includes the derived fields `current_price`, `invested`, `balance`, `variation_value`, `variation_percent` and `portfolio_percent`. Creating or updating a position triggers `ConsolidateByWallet`, which recalculates all positions of the wallet in the same transaction. List returns an empty array (`[]`) when there are no positions, ordered by `balance DESC` by default. Optional query parameters: `ticker` (partial case-insensitive match) and `sort` (`ticker`, `rank`, `invested`, `variation_percent`, `portfolio_percent`; prefix `-` for descending). Invalid `sort` values fall back to the default ordering. Returns `404 Not Found` if the wallet or position/stock does not exist, `409 Conflict` if a position for the same stock already exists in the wallet, and `422 Unprocessable Entity` for invalid payloads.
 
+### Dashboard
+- **URL**: `GET /api/v1/wallets/:id/dashboard/summary`
+- **Description**: Returns aggregated dashboard metrics for the wallet. `current_patrimony` is the sum of all Patrimony amounts for the latest month with data. `stocks_invested` is the sum of Position.Invested for the wallet. `yearly_dividends` is always `0` until the dividends epic is implemented. All monetary values are integer cents.
+
 ### Seed
 - **Command**: `make seed-stock`
 - **Description**: Idempotently seeds the B3 blue-chip catalog into the `stocks` table. Repeating the command does not duplicate or overwrite manual edits.
