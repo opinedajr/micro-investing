@@ -6,6 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/opinedajr/micro-investing/internal/dashboard"
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
 	"github.com/opinedajr/micro-investing/internal/infrastructure/database"
 	"github.com/opinedajr/micro-investing/internal/patrimony"
@@ -40,6 +41,7 @@ type HandlerDependencies struct {
 	patrimonyHandler   *patrimony.Handler
 	stockHandler       *stock.Handler
 	positionHandler    *position.Handler
+	dashboardHandler   *dashboard.Handler
 }
 
 type ServiceDependencies struct {
@@ -48,6 +50,7 @@ type ServiceDependencies struct {
 	patrimonyService   patrimony.Service
 	stockService       stock.Service
 	positionService    position.Service
+	dashboardService   dashboard.Service
 }
 
 func NewContainer() *Container {
@@ -208,4 +211,18 @@ func (c *Container) PositionHandler() *position.Handler {
 		c.handlers.positionHandler = position.NewHandler(c.PositionService())
 	}
 	return c.handlers.positionHandler
+}
+
+func (c *Container) DashboardService() dashboard.Service {
+	if c.services.dashboardService == nil {
+		c.services.dashboardService = dashboard.NewService(c.PatrimonyRepository(), c.PositionRepository(), c.StockRepository())
+	}
+	return c.services.dashboardService
+}
+
+func (c *Container) DashboardHandler() *dashboard.Handler {
+	if c.handlers.dashboardHandler == nil {
+		c.handlers.dashboardHandler = dashboard.NewHandler(c.DashboardService())
+	}
+	return c.handlers.dashboardHandler
 }
