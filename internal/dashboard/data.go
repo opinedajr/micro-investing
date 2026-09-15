@@ -5,3 +5,14 @@ type SummaryOutput struct {
 	YearlyDividends  int64 `json:"yearly_dividends"`
 	StocksInvested   int64 `json:"stocks_invested"`
 }
+
+type AllocationItem struct {
+	Type       string  `json:"type"`
+	Amount     int64   `json:"amount"`
+	Percentage float64 `json:"percentage"`
+}
+
+type AllocationOutput struct {
+	Items []AllocationItem `json:"items"`
+	Total int64            `json:"total"`
+}
