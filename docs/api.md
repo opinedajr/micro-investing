@@ -446,3 +446,32 @@ Behavior: `average_price` is overwritten by the input value (snapshot, not weigh
   - `404 Not Found` (`POSITION_NOT_FOUND`): position `:positionId` not found or belongs to another wallet
   - `422 Unprocessable Entity` (`VALIDATION_ERROR`): missing/invalid fields (`quantity` and `average_price` must be >= 1)
   - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
+
+---
+
+## Dashboard
+
+Read-only aggregated dashboard metrics per wallet. All monetary values are integer cents.
+
+### Summary
+
+- **URL**: `GET /api/v1/wallets/:id/dashboard/summary`
+- **Response**: `200 OK`
+
+```json
+{
+  "data": {
+    "current_patrimony": 1500000,
+    "yearly_dividends": 0,
+    "stocks_invested": 500000
+  }
+}
+```
+
+- `current_patrimony`: sum of all Patrimony amounts for the latest month with data (MAX year/month with records for the wallet)
+- `stocks_invested`: sum of `Position.Invested` for the wallet
+- `yearly_dividends`: always `0` until the dividends epic is implemented
+
+- **Errors**:
+  - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
+  - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error

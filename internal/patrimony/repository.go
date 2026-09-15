@@ -8,7 +8,14 @@ type PatrimonyRepository interface {
 	FindByID(ctx context.Context, id string) (*Patrimony, error)
 	FindByFilter(ctx context.Context, filter PatrimonyFilter) ([]Patrimony, error)
 	FindByWalletYearMonthType(ctx context.Context, walletID string, year int, month int, assetType AssetType) (*Patrimony, error)
+	FindLatestMonthByWallet(ctx context.Context, walletID string) (year int, month int, err error)
+	SumByWalletYearMonth(ctx context.Context, walletID string, year int, month int) ([]TypeAmount, error)
 	RunInTransaction(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+type TypeAmount struct {
+	Type   AssetType
+	Amount int64
 }
 
 type AssetRepository interface {

@@ -66,6 +66,41 @@ func (r *SQLitePatrimonyRepository) FindByWalletYearMonthType(ctx context.Contex
 	return &patrimony, nil
 }
 
+func (r *SQLitePatrimonyRepository) FindLatestMonthByWallet(ctx context.Context, walletID string) (int, int, error) {
+	var result struct {
+		Year  int
+		Month int
+	}
+	err := r.txFromContext(ctx).
+		Model(&Patrimony{}).
+		Select("year, month").
+		Where("wallet_id = ?", walletID).
+		Order("year DESC, month DESC").
+		Limit(1).
+		Scan(&result).Error
+	if err != nil {
+		return 0, 0, err
+	}
+	return result.Year, result.Month, nil
+}
+
+func (r *SQLitePatrimonyRepository) SumByWalletYearMonth(ctx context.Context, walletID string, year int, month int) ([]TypeAmount, error) {
+	var rows []TypeAmount
+	err := r.txFromContext(ctx).
+		Model(&Patrimony{}).
+		Select("type, COALESCE(SUM(amount), 0) AS amount").
+		Where("wallet_id = ? AND year = ? AND month = ?", walletID, year, month).
+		Group("type").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	if rows == nil {
+		return []TypeAmount{}, nil
+	}
+	return rows, nil
+}
+
 func (r *SQLitePatrimonyRepository) RunInTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return fn(injectTxIntoContext(ctx, tx))
