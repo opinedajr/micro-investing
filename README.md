@@ -171,7 +171,8 @@ Commands:
 
 ### Dashboard
 - **URL**: `GET /api/v1/wallets/:id/dashboard/summary`
-- **Description**: Returns aggregated dashboard metrics for the wallet. `current_patrimony` is the sum of all Patrimony amounts for the latest month with data. `stocks_invested` is the sum of Position.Invested for the wallet. `yearly_dividends` is always `0` until the dividends epic is implemented. All monetary values are integer cents.
+- **URL**: `GET /api/v1/wallets/:id/dashboard/allocation`
+- **Description**: Returns aggregated dashboard metrics for the wallet. `current_patrimony` is the sum of all Patrimony amounts for the latest month with data. `stocks_invested` is the sum of Position.Invested for the wallet. `yearly_dividends` is always `0` until the dividends epic is implemented. The allocation endpoint returns the percentage distribution by asset type for the latest month with data; categories with no balance are omitted. All monetary values are integer cents.
 
 ### Seed
 - **Command**: `make seed-stock`

@@ -475,3 +475,31 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 - **Errors**:
   - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
   - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
+
+### Allocation
+
+- **URL**: `GET /api/v1/wallets/:id/dashboard/allocation`
+- **Response**: `200 OK`
+
+```json
+{
+  "data": {
+    "items": [
+      { "type": "stocks", "amount": 500000, "percentage": 33.33 },
+      { "type": "fixed_income", "amount": 500000, "percentage": 33.33 },
+      { "type": "emergency_reserve", "amount": 250000, "percentage": 16.67 },
+      { "type": "liquid_cash", "amount": 250000, "percentage": 16.67 }
+    ],
+    "total": 1500000
+  }
+}
+```
+
+- Uses only Patrimony from the latest month with data, grouped by `AssetType`
+- Returns the 5 categories without aggregation; categories with no balance are omitted
+- `percentage = (amount / total) × 100`
+- `total`: sum of the amounts of the returned items
+
+- **Errors**:
+  - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
+  - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
