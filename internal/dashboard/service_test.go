@@ -221,3 +221,107 @@ func TestService_Summary(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestService_Allocation(t *testing.T) {
+	t.Run("success - returns aggregated allocation with percentages", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			findLatestMonthByWalletFunc: func(ctx context.Context, walletID string) (int, int, error) {
+				return 2026, 7, nil
+			},
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				return []patrimony.TypeAmount{
+					{Type: patrimony.TypeStocks, Amount: 500000},
+					{Type: patrimony.TypeFixedIncome, Amount: 500000},
+					{Type: patrimony.TypeEmergencyReserve, Amount: 250000},
+					{Type: patrimony.TypeLiquidCash, Amount: 250000},
+				}, nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		output, err := service.Allocation(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1500000), output.Total)
+		assert.Len(t, output.Items, 4)
+
+		expectedPercentages := map[string]float64{
+			"stocks":            33.33,
+			"fixed_income":      33.33,
+			"emergency_reserve": 16.67,
+			"liquid_cash":       16.67,
+		}
+		for _, item := range output.Items {
+			assert.InDelta(t, expectedPercentages[item.Type], item.Percentage, 0.01)
+		}
+	})
+
+	t.Run("success - omits categories without balance", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			findLatestMonthByWalletFunc: func(ctx context.Context, walletID string) (int, int, error) {
+				return 2026, 7, nil
+			},
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				return []patrimony.TypeAmount{
+					{Type: patrimony.TypeStocks, Amount: 100000},
+					{Type: patrimony.TypeFixedIncome, Amount: 0},
+					{Type: patrimony.TypeFIIs, Amount: 0},
+				}, nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		output, err := service.Allocation(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(100000), output.Total)
+		assert.Len(t, output.Items, 1)
+		assert.Equal(t, "stocks", output.Items[0].Type)
+		assert.Equal(t, int64(100000), output.Items[0].Amount)
+		assert.InDelta(t, 100.0, output.Items[0].Percentage, 0.01)
+	})
+
+	t.Run("success - returns empty when wallet has no patrimony records", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			findLatestMonthByWalletFunc: func(ctx context.Context, walletID string) (int, int, error) {
+				return 0, 0, nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		output, err := service.Allocation(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), output.Total)
+		assert.Empty(t, output.Items)
+	})
+
+	t.Run("error - returns error when finding latest month fails", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			findLatestMonthByWalletFunc: func(ctx context.Context, walletID string) (int, int, error) {
+				return 0, 0, errors.New("database error")
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		_, err := service.Allocation(context.Background(), "wallet-id")
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - returns error when summing patrimony fails", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			findLatestMonthByWalletFunc: func(ctx context.Context, walletID string) (int, int, error) {
+				return 2026, 7, nil
+			},
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				return nil, errors.New("database error")
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		_, err := service.Allocation(context.Background(), "wallet-id")
+
+		assert.Error(t, err)
+	})
+}
