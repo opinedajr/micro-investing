@@ -16,3 +16,14 @@ type AllocationOutput struct {
 	Items []AllocationItem `json:"items"`
 	Total int64            `json:"total"`
 }
+
+type RiskItem struct {
+	Rank       int8    `json:"rank"`
+	Amount     int64   `json:"amount"`
+	Percentage float64 `json:"percentage"`
+}
+
+type RiskOutput struct {
+	Items []RiskItem `json:"items"`
+	Total int64      `json:"total"`
+}

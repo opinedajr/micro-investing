@@ -16,6 +16,7 @@ import (
 type mockDashboardService struct {
 	summaryFunc    func(ctx context.Context, walletID string) (*SummaryOutput, error)
 	allocationFunc func(ctx context.Context, walletID string) (*AllocationOutput, error)
+	riskFunc       func(ctx context.Context, walletID string) (*RiskOutput, error)
 }
 
 func (m *mockDashboardService) Summary(ctx context.Context, walletID string) (*SummaryOutput, error) {
@@ -28,6 +29,13 @@ func (m *mockDashboardService) Summary(ctx context.Context, walletID string) (*S
 func (m *mockDashboardService) Allocation(ctx context.Context, walletID string) (*AllocationOutput, error) {
 	if m.allocationFunc != nil {
 		return m.allocationFunc(ctx, walletID)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockDashboardService) Risk(ctx context.Context, walletID string) (*RiskOutput, error) {
+	if m.riskFunc != nil {
+		return m.riskFunc(ctx, walletID)
 	}
 	return nil, errors.New("not implemented")
 }
@@ -139,6 +147,66 @@ func TestHandler_Allocation(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/allocation", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "INTERNAL_ERROR", response.Error.Code)
+	})
+}
+
+func TestHandler_Risk(t *testing.T) {
+	t.Run("success - returns risk", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		service := &mockDashboardService{
+			riskFunc: func(ctx context.Context, walletID string) (*RiskOutput, error) {
+				return &RiskOutput{
+					Items: []RiskItem{
+						{Rank: 3, Amount: 300000, Percentage: 60.0},
+						{Rank: 4, Amount: 200000, Percentage: 40.0},
+					},
+					Total: 500000,
+				}, nil
+			},
+		}
+		handler := NewHandler(service)
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/risk", handler.Risk)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/risk", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response api.Response[*RiskOutput]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Len(t, response.Data.Items, 2)
+		assert.Equal(t, int64(500000), response.Data.Total)
+		assert.Equal(t, int8(3), response.Data.Items[0].Rank)
+		assert.Equal(t, int64(300000), response.Data.Items[0].Amount)
+		assert.InDelta(t, 60.0, response.Data.Items[0].Percentage, 0.01)
+	})
+
+	t.Run("error - returns internal server error when service fails", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		service := &mockDashboardService{
+			riskFunc: func(ctx context.Context, walletID string) (*RiskOutput, error) {
+				return nil, errors.New("service error")
+			},
+		}
+		handler := NewHandler(service)
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/risk", handler.Risk)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/risk", nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
