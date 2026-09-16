@@ -93,6 +93,10 @@ func (m *mockStockRepository) FindByID(ctx context.Context, id string) (*stock.S
 	return nil, stock.ErrStockNotFound
 }
 
+func (m *mockStockRepository) FindByIDs(ctx context.Context, ids []string) ([]stock.Stock, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *mockStockRepository) List(ctx context.Context) ([]stock.Stock, error) {
 	return nil, errors.New("not implemented")
 }

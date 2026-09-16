@@ -46,6 +46,15 @@ func (r *SQLiteRepository) FindByID(ctx context.Context, id string) (*Stock, err
 	return &stock, nil
 }
 
+func (r *SQLiteRepository) FindByIDs(ctx context.Context, ids []string) ([]Stock, error) {
+	var stocks []Stock
+	if len(ids) == 0 {
+		return stocks, nil
+	}
+	err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&stocks).Error
+	return stocks, err
+}
+
 func (r *SQLiteRepository) List(ctx context.Context) ([]Stock, error) {
 	var stocks []Stock
 	err := r.db.WithContext(ctx).Order("ticker ASC").Find(&stocks).Error

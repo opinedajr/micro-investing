@@ -30,6 +30,10 @@ func (m *mockRepository) FindByID(ctx context.Context, id string) (*Stock, error
 	return nil, errors.New("not implemented")
 }
 
+func (m *mockRepository) FindByIDs(ctx context.Context, ids []string) ([]Stock, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *mockRepository) List(ctx context.Context) ([]Stock, error) {
 	if m.listFunc != nil {
 		return m.listFunc(ctx)

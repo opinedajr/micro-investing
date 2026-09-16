@@ -104,6 +104,45 @@ func TestSQLiteRepository_FindByID(t *testing.T) {
 	})
 }
 
+func TestSQLiteRepository_FindByIDs(t *testing.T) {
+	t.Run("success - returns batch of stocks by ids", func(t *testing.T) {
+		gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
+		require.NoError(t, err)
+
+		require.NoError(t, gormDB.AutoMigrate(&Stock{}))
+
+		repo := NewSQLiteRepository(gormDB)
+		first := &Stock{Ticker: "PETR4", Name: "Petrobras PN", Sector: "Petróleo", Rank: 10}
+		second := &Stock{Ticker: "VALE3", Name: "Vale ON", Sector: "Mineração", Rank: 10}
+		require.NoError(t, repo.Create(context.Background(), first))
+		require.NoError(t, repo.Create(context.Background(), second))
+
+		stocks, err := repo.FindByIDs(context.Background(), []string{first.ID, second.ID})
+		assert.NoError(t, err)
+		require.Len(t, stocks, 2)
+
+		ids := map[string]bool{}
+		for _, s := range stocks {
+			ids[s.ID] = true
+		}
+		assert.True(t, ids[first.ID])
+		assert.True(t, ids[second.ID])
+	})
+
+	t.Run("success - returns empty for non-existent ids", func(t *testing.T) {
+		gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
+		require.NoError(t, err)
+
+		require.NoError(t, gormDB.AutoMigrate(&Stock{}))
+
+		repo := NewSQLiteRepository(gormDB)
+		stocks, err := repo.FindByIDs(context.Background(), []string{"missing-id-1", "missing-id-2"})
+
+		assert.NoError(t, err)
+		assert.Empty(t, stocks)
+	})
+}
+
 func TestSQLiteRepository_List(t *testing.T) {
 	t.Run("success - returns stocks ordered by ticker", func(t *testing.T) {
 		gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
