@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/opinedajr/micro-investing/internal/shared/api"
@@ -68,6 +69,55 @@ func (h *Handler) Risk(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, api.Response[*RiskOutput]{
+		Data: output,
+	})
+}
+
+func (h *Handler) Evolution(c *gin.Context) {
+	walletID := c.Param("id")
+
+	input := EvolutionInput{}
+
+	if yearStr := c.Query("year"); yearStr != "" {
+		year, err := strconv.Atoi(yearStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, api.Response[interface{}]{
+				Error: &api.APIError{
+					Code:    "VALIDATION_ERROR",
+					Message: "Invalid year",
+				},
+			})
+			return
+		}
+		input.Year = year
+	}
+
+	if quarterStr := c.Query("quarter"); quarterStr != "" {
+		quarter, err := strconv.Atoi(quarterStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, api.Response[interface{}]{
+				Error: &api.APIError{
+					Code:    "VALIDATION_ERROR",
+					Message: "Invalid quarter",
+				},
+			})
+			return
+		}
+		input.Quarter = quarter
+	}
+
+	output, err := h.service.Evolution(c.Request.Context(), walletID, input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "INTERNAL_ERROR",
+				Message: "Internal server error",
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, api.Response[*EvolutionOutput]{
 		Data: output,
 	})
 }
