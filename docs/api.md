@@ -547,9 +547,9 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
   - No filters → last 12 rolling months
   - `year` only → January to December of that year
   - `year` + `quarter` → the 3 months of that quarter (Q1=1-3, Q2=4-6, Q3=7-9, Q4=10-12)
-- **Carry forward**: months without Patrimony data are filled with the previous month's value (applies to `total` and each `by_category` series)
+- **Carry forward**: months without Patrimony data are filled with the previous month's value (applies to `total`). For `by_category`, missing categories within a month that has other data are also filled with the previous month's value for that category, avoiding gaps in the individual series.
 
 - **Errors**:
-  - `400 Bad Request` (`VALIDATION_ERROR`): invalid `year` or `quarter` format
+  - `400 Bad Request` (`VALIDATION_ERROR`): invalid `year` or `quarter` format, `year` less than or equal to zero, `quarter` outside 1-4, or `quarter` without `year`
   - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
   - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
