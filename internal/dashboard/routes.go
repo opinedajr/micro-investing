@@ -13,4 +13,5 @@ func RegisterRoutes(rg *gin.RouterGroup, h *Handler, walletService wallet.Servic
 	dashboard := wallets.Group("/:id/dashboard")
 	dashboard.GET("/summary", h.Summary)
 	dashboard.GET("/allocation", h.Allocation)
+	dashboard.GET("/evolution", h.Evolution)
 }
