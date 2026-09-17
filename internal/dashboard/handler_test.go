@@ -16,6 +16,7 @@ import (
 type mockDashboardService struct {
 	summaryFunc    func(ctx context.Context, walletID string) (*SummaryOutput, error)
 	allocationFunc func(ctx context.Context, walletID string) (*AllocationOutput, error)
+	evolutionFunc  func(ctx context.Context, walletID string, input EvolutionInput) (*EvolutionOutput, error)
 }
 
 func (m *mockDashboardService) Summary(ctx context.Context, walletID string) (*SummaryOutput, error) {
@@ -28,6 +29,13 @@ func (m *mockDashboardService) Summary(ctx context.Context, walletID string) (*S
 func (m *mockDashboardService) Allocation(ctx context.Context, walletID string) (*AllocationOutput, error) {
 	if m.allocationFunc != nil {
 		return m.allocationFunc(ctx, walletID)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockDashboardService) Evolution(ctx context.Context, walletID string, input EvolutionInput) (*EvolutionOutput, error) {
+	if m.evolutionFunc != nil {
+		return m.evolutionFunc(ctx, walletID, input)
 	}
 	return nil, errors.New("not implemented")
 }
@@ -77,6 +85,236 @@ func TestHandler_Summary(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/summary", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "INTERNAL_ERROR", response.Error.Code)
+	})
+}
+
+func TestHandler_Evolution(t *testing.T) {
+	t.Run("success - returns evolution with query params", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		service := &mockDashboardService{
+			evolutionFunc: func(ctx context.Context, walletID string, input EvolutionInput) (*EvolutionOutput, error) {
+				assert.Equal(t, 2026, input.Year)
+				assert.Equal(t, 2, input.Quarter)
+				return &EvolutionOutput{
+					Total: []EvolutionMonthOutput{
+						{Year: 2026, Month: 4, Amount: 1200000},
+						{Year: 2026, Month: 5, Amount: 1350000},
+						{Year: 2026, Month: 6, Amount: 1500000},
+					},
+					ByCategory: EvolutionCategoryOutput{
+						FixedIncome: []EvolutionMonthOutput{
+							{Year: 2026, Month: 4, Amount: 500000},
+							{Year: 2026, Month: 5, Amount: 500000},
+							{Year: 2026, Month: 6, Amount: 550000},
+						},
+						Stocks: []EvolutionMonthOutput{
+							{Year: 2026, Month: 4, Amount: 400000},
+							{Year: 2026, Month: 5, Amount: 500000},
+							{Year: 2026, Month: 6, Amount: 600000},
+						},
+						EmergencyReserve: []EvolutionMonthOutput{
+							{Year: 2026, Month: 4, Amount: 300000},
+							{Year: 2026, Month: 5, Amount: 350000},
+							{Year: 2026, Month: 6, Amount: 350000},
+						},
+					},
+				}, nil
+			},
+		}
+		handler := NewHandler(service)
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=2026&quarter=2", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response api.Response[*EvolutionOutput]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Len(t, response.Data.Total, 3)
+		assert.Equal(t, int64(1500000), response.Data.Total[2].Amount)
+		assert.Len(t, response.Data.ByCategory.FixedIncome, 3)
+		assert.Equal(t, int64(550000), response.Data.ByCategory.FixedIncome[2].Amount)
+	})
+
+	t.Run("error - returns bad request when year is invalid", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=abc", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when quarter is invalid string", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=2026&quarter=abc", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when quarter is out of range", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=2026&quarter=5", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when quarter is zero", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=2026&quarter=0", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when quarter is negative", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=2026&quarter=-1", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when quarter without year", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?quarter=2", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when year is zero", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=0&quarter=2", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when year is negative", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=-2026&quarter=2", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns internal server error when service fails", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		service := &mockDashboardService{
+			evolutionFunc: func(ctx context.Context, walletID string, input EvolutionInput) (*EvolutionOutput, error) {
+				return nil, errors.New("service error")
+			},
+		}
+		handler := NewHandler(service)
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution", nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)

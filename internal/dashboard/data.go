@@ -16,3 +16,25 @@ type AllocationOutput struct {
 	Items []AllocationItem `json:"items"`
 	Total int64            `json:"total"`
 }
+
+type EvolutionMonthOutput struct {
+	Year   int   `json:"year"`
+	Month  int   `json:"month"`
+	Amount int64 `json:"amount"`
+}
+
+type EvolutionCategoryOutput struct {
+	FixedIncome      []EvolutionMonthOutput `json:"fixed_income"`
+	Stocks           []EvolutionMonthOutput `json:"stocks"`
+	EmergencyReserve []EvolutionMonthOutput `json:"emergency_reserve"`
+}
+
+type EvolutionOutput struct {
+	Total      []EvolutionMonthOutput  `json:"total"`
+	ByCategory EvolutionCategoryOutput `json:"by_category"`
+}
+
+type EvolutionInput struct {
+	Year    int
+	Quarter int
+}
