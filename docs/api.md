@@ -530,3 +530,53 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 - **Errors**:
   - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
   - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
+
+### Evolution
+
+- **URL**: `GET /api/v1/wallets/:id/dashboard/evolution?year=2026&quarter=2`
+- **Query Parameters** (all optional):
+  - `year`: integer year filter
+  - `quarter`: integer quarter filter (1-4), requires `year`
+- **Response**: `200 OK`
+
+```json
+{
+  "data": {
+    "total": [
+      { "year": 2026, "month": 4, "amount": 1200000 },
+      { "year": 2026, "month": 5, "amount": 1350000 },
+      { "year": 2026, "month": 6, "amount": 1500000 }
+    ],
+    "by_category": {
+      "fixed_income": [
+        { "year": 2026, "month": 4, "amount": 500000 },
+        { "year": 2026, "month": 5, "amount": 500000 },
+        { "year": 2026, "month": 6, "amount": 550000 }
+      ],
+      "stocks": [
+        { "year": 2026, "month": 4, "amount": 400000 },
+        { "year": 2026, "month": 5, "amount": 500000 },
+        { "year": 2026, "month": 6, "amount": 600000 }
+      ],
+      "emergency_reserve": [
+        { "year": 2026, "month": 4, "amount": 300000 },
+        { "year": 2026, "month": 5, "amount": 350000 },
+        { "year": 2026, "month": 6, "amount": 350000 }
+      ]
+    }
+  }
+}
+```
+
+- `total`: sum of all Patrimony categories per month (including `fiis` and `liquid_cash`)
+- `by_category`: breakdown for `fixed_income`, `stocks` and `emergency_reserve` only
+- **Period rules**:
+  - No filters → last 12 rolling months
+  - `year` only → January to December of that year
+  - `year` + `quarter` → the 3 months of that quarter (Q1=1-3, Q2=4-6, Q3=7-9, Q4=10-12)
+- **Carry forward**: months without Patrimony data are filled with the previous month's value (applies to `total` and each `by_category` series)
+
+- **Errors**:
+  - `400 Bad Request` (`VALIDATION_ERROR`): invalid `year` or `quarter` format
+  - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
+  - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
