@@ -31,7 +31,10 @@ func NewService(patrimonyRepository patrimony.PatrimonyRepository, positionRepos
 }
 
 func (s *dashboardService) Evolution(ctx context.Context, walletID string, input EvolutionInput) (*EvolutionOutput, error) {
-	startYear, startMonth, endYear, endMonth := resolveEvolutionPeriod(time.Now(), input)
+	startYear, startMonth, endYear, endMonth, err := resolveEvolutionPeriod(time.Now(), input)
+	if err != nil {
+		return nil, err
+	}
 
 	totalSeries := make([]EvolutionMonthOutput, 0)
 	fixedIncomeSeries := make([]EvolutionMonthOutput, 0)
@@ -53,38 +56,27 @@ func (s *dashboardService) Evolution(ctx context.Context, walletID string, input
 		}
 
 		var monthTotal int64
-		var monthFixedIncome int64
-		var monthStocks int64
-		var monthEmergencyReserve int64
-
 		if len(typeAmounts) > 0 {
 			for _, item := range typeAmounts {
 				monthTotal += item.Amount
-				if item.Type == patrimony.TypeFixedIncome {
-					monthFixedIncome += item.Amount
-				}
-				if item.Type == patrimony.TypeStocks {
-					monthStocks += item.Amount
-				}
-				if item.Type == patrimony.TypeEmergencyReserve {
-					monthEmergencyReserve += item.Amount
-				}
 			}
 			previousTotal = monthTotal
-			previousFixedIncome = monthFixedIncome
-			previousStocks = monthStocks
-			previousEmergencyReserve = monthEmergencyReserve
 		} else {
 			monthTotal = previousTotal
-			monthFixedIncome = previousFixedIncome
-			monthStocks = previousStocks
-			monthEmergencyReserve = previousEmergencyReserve
 		}
 
+		monthFixedIncome, fixedIncomeFound := categoryAmount(typeAmounts, patrimony.TypeFixedIncome)
+		monthStocks, stocksFound := categoryAmount(typeAmounts, patrimony.TypeStocks)
+		monthEmergencyReserve, emergencyReserveFound := categoryAmount(typeAmounts, patrimony.TypeEmergencyReserve)
+
+		previousFixedIncome = carryForwardValue(previousFixedIncome, monthFixedIncome, fixedIncomeFound)
+		previousStocks = carryForwardValue(previousStocks, monthStocks, stocksFound)
+		previousEmergencyReserve = carryForwardValue(previousEmergencyReserve, monthEmergencyReserve, emergencyReserveFound)
+
 		totalSeries = append(totalSeries, EvolutionMonthOutput{Year: year, Month: month, Amount: monthTotal})
-		fixedIncomeSeries = append(fixedIncomeSeries, EvolutionMonthOutput{Year: year, Month: month, Amount: monthFixedIncome})
-		stocksSeries = append(stocksSeries, EvolutionMonthOutput{Year: year, Month: month, Amount: monthStocks})
-		emergencyReserveSeries = append(emergencyReserveSeries, EvolutionMonthOutput{Year: year, Month: month, Amount: monthEmergencyReserve})
+		fixedIncomeSeries = append(fixedIncomeSeries, EvolutionMonthOutput{Year: year, Month: month, Amount: previousFixedIncome})
+		stocksSeries = append(stocksSeries, EvolutionMonthOutput{Year: year, Month: month, Amount: previousStocks})
+		emergencyReserveSeries = append(emergencyReserveSeries, EvolutionMonthOutput{Year: year, Month: month, Amount: previousEmergencyReserve})
 
 		if year == endYear && month == endMonth {
 			break
@@ -107,19 +99,43 @@ func (s *dashboardService) Evolution(ctx context.Context, walletID string, input
 	}, nil
 }
 
-func resolveEvolutionPeriod(reference time.Time, input EvolutionInput) (startYear int, startMonth int, endYear int, endMonth int) {
+func categoryAmount(typeAmounts []patrimony.TypeAmount, assetType patrimony.AssetType) (int64, bool) {
+	for _, item := range typeAmounts {
+		if item.Type == assetType {
+			return item.Amount, true
+		}
+	}
+	return 0, false
+}
+
+func carryForwardValue(previous int64, current int64, found bool) int64 {
+	if found {
+		return current
+	}
+	return previous
+}
+
+func resolveEvolutionPeriod(reference time.Time, input EvolutionInput) (startYear int, startMonth int, endYear int, endMonth int, err error) {
 	if input.Year > 0 {
-		endYear = input.Year
-		if input.Quarter > 0 {
+		if input.Quarter != 0 {
+			if input.Quarter < 1 || input.Quarter > 4 {
+				return 0, 0, 0, 0, ErrInvalidEvolutionPeriod
+			}
 			startMonth = (input.Quarter-1)*3 + 1
 			endMonth = input.Quarter * 3
 			startYear = input.Year
-			return startYear, startMonth, endYear, endMonth
+			endYear = input.Year
+			return startYear, startMonth, endYear, endMonth, nil
 		}
 		startYear = input.Year
+		endYear = input.Year
 		startMonth = 1
 		endMonth = 12
-		return startYear, startMonth, endYear, endMonth
+		return startYear, startMonth, endYear, endMonth, nil
+	}
+
+	if input.Quarter != 0 {
+		return 0, 0, 0, 0, ErrInvalidEvolutionPeriod
 	}
 
 	endYear = reference.Year()
@@ -130,7 +146,7 @@ func resolveEvolutionPeriod(reference time.Time, input EvolutionInput) (startYea
 		startMonth += 12
 		startYear--
 	}
-	return startYear, startMonth, endYear, endMonth
+	return startYear, startMonth, endYear, endMonth, nil
 }
 
 func (s *dashboardService) Allocation(ctx context.Context, walletID string) (*AllocationOutput, error) {

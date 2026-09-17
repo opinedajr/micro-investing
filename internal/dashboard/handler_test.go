@@ -176,7 +176,7 @@ func TestHandler_Evolution(t *testing.T) {
 		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
 	})
 
-	t.Run("error - returns bad request when quarter is invalid", func(t *testing.T) {
+	t.Run("error - returns bad request when quarter is invalid string", func(t *testing.T) {
 		gin.SetMode(gin.TestMode)
 		handler := NewHandler(&mockDashboardService{})
 
@@ -185,6 +185,120 @@ func TestHandler_Evolution(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=2026&quarter=abc", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when quarter is out of range", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=2026&quarter=5", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when quarter is zero", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=2026&quarter=0", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when quarter is negative", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=2026&quarter=-1", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when quarter without year", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?quarter=2", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when year is zero", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=0&quarter=2", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "VALIDATION_ERROR", response.Error.Code)
+	})
+
+	t.Run("error - returns bad request when year is negative", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		handler := NewHandler(&mockDashboardService{})
+
+		r := gin.New()
+		r.GET("/api/v1/wallets/:id/dashboard/evolution", handler.Evolution)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=-2026&quarter=2", nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
