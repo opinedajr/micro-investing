@@ -56,6 +56,7 @@ func (m *mockPatrimonyRepository) RunInTransaction(ctx context.Context, fn func(
 
 type mockPositionRepository struct {
 	sumInvestedByWalletFunc func(ctx context.Context, walletID string) (int64, error)
+	findByFilterFunc        func(ctx context.Context, filter position.PositionFilter) ([]position.Position, error)
 }
 
 func (m *mockPositionRepository) Create(ctx context.Context, p *position.Position) error {
@@ -71,6 +72,9 @@ func (m *mockPositionRepository) FindByID(ctx context.Context, id string) (*posi
 }
 
 func (m *mockPositionRepository) FindByFilter(ctx context.Context, filter position.PositionFilter) ([]position.Position, error) {
+	if m.findByFilterFunc != nil {
+		return m.findByFilterFunc(ctx, filter)
+	}
 	return nil, nil
 }
 
@@ -93,7 +97,9 @@ func (m *mockPositionRepository) RunInTransaction(ctx context.Context, fn func(c
 	return fn(ctx)
 }
 
-type mockStockRepository struct{}
+type mockStockRepository struct {
+	findByIDsFunc func(ctx context.Context, ids []string) ([]stock.Stock, error)
+}
 
 func (m *mockStockRepository) Create(ctx context.Context, s *stock.Stock) error {
 	return nil
@@ -104,6 +110,13 @@ func (m *mockStockRepository) FindByTicker(ctx context.Context, ticker string) (
 }
 
 func (m *mockStockRepository) FindByID(ctx context.Context, id string) (*stock.Stock, error) {
+	return nil, nil
+}
+
+func (m *mockStockRepository) FindByIDs(ctx context.Context, ids []string) ([]stock.Stock, error) {
+	if m.findByIDsFunc != nil {
+		return m.findByIDsFunc(ctx, ids)
+	}
 	return nil, nil
 }
 
@@ -321,6 +334,92 @@ func TestService_Allocation(t *testing.T) {
 
 		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
 		_, err := service.Allocation(context.Background(), "wallet-id")
+
+		assert.Error(t, err)
+	})
+}
+
+func TestService_Risk(t *testing.T) {
+	t.Run("success - returns aggregated risk by stock rank", func(t *testing.T) {
+		positionRepo := &mockPositionRepository{
+			findByFilterFunc: func(ctx context.Context, filter position.PositionFilter) ([]position.Position, error) {
+				return []position.Position{
+					{StockID: "stock-1", Invested: 300000},
+					{StockID: "stock-2", Invested: 200000},
+				}, nil
+			},
+		}
+		stockRepo := &mockStockRepository{
+			findByIDsFunc: func(ctx context.Context, ids []string) ([]stock.Stock, error) {
+				return []stock.Stock{
+					{ID: "stock-1", Rank: 3},
+					{ID: "stock-2", Rank: 4},
+				}, nil
+			},
+		}
+
+		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo)
+		output, err := service.Risk(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(500000), output.Total)
+		assert.Len(t, output.Items, 2)
+
+		expected := map[int8]float64{
+			3: 60.0,
+			4: 40.0,
+		}
+		for _, item := range output.Items {
+			assert.InDelta(t, expected[item.Rank], item.Percentage, 0.01)
+		}
+	})
+
+	t.Run("success - returns empty when wallet has no positions", func(t *testing.T) {
+		positionRepo := &mockPositionRepository{
+			findByFilterFunc: func(ctx context.Context, filter position.PositionFilter) ([]position.Position, error) {
+				return []position.Position{}, nil
+			},
+		}
+		stockRepo := &mockStockRepository{}
+
+		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo)
+		output, err := service.Risk(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), output.Total)
+		assert.Empty(t, output.Items)
+	})
+
+	t.Run("error - returns error when finding positions fails", func(t *testing.T) {
+		positionRepo := &mockPositionRepository{
+			findByFilterFunc: func(ctx context.Context, filter position.PositionFilter) ([]position.Position, error) {
+				return nil, errors.New("database error")
+			},
+		}
+		stockRepo := &mockStockRepository{}
+
+		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo)
+		_, err := service.Risk(context.Background(), "wallet-id")
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - returns error when finding stocks fails", func(t *testing.T) {
+		positionRepo := &mockPositionRepository{
+			findByFilterFunc: func(ctx context.Context, filter position.PositionFilter) ([]position.Position, error) {
+				return []position.Position{
+					{StockID: "stock-1", Invested: 300000},
+				}, nil
+			},
+		}
+		stockRepo := &mockStockRepository{
+			findByIDsFunc: func(ctx context.Context, ids []string) ([]stock.Stock, error) {
+				return nil, errors.New("database error")
+			},
+		}
+
+		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo)
+		_, err := service.Risk(context.Background(), "wallet-id")
 
 		assert.Error(t, err)
 	})

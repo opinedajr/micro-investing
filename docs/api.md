@@ -503,3 +503,30 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 - **Errors**:
   - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
   - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
+
+### Risk
+
+- **URL**: `GET /api/v1/wallets/:id/dashboard/risk`
+- **Response**: `200 OK`
+
+```json
+{
+  "data": {
+    "items": [
+      { "rank": 3, "amount": 300000, "percentage": 60.0 },
+      { "rank": 4, "amount": 200000, "percentage": 40.0 }
+    ],
+    "total": 500000
+  }
+}
+```
+
+- Uses `Position.Invested` grouped by `Stock.Rank` (1-5)
+- The service fetches all positions for the wallet, resolves the rank of each stock via batch lookup, and aggregates in memory
+- `percentage = (invested per rank / total invested) × 100`
+- Ranks with no invested amount are omitted
+- `total`: sum of `Position.Invested` for the wallet
+
+- **Errors**:
+  - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
+  - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error

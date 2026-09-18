@@ -84,4 +84,29 @@ func TestRegisterRoutes(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
+
+	t.Run("success - registers dashboard risk route under /api/v1/wallets/:id/dashboard/risk", func(t *testing.T) {
+		service := &mockDashboardService{
+			riskFunc: func(ctx context.Context, walletID string) (*RiskOutput, error) {
+				return &RiskOutput{
+					Items: []RiskItem{
+						{Rank: 3, Amount: 300000, Percentage: 60.0},
+					},
+					Total: 300000,
+				}, nil
+			},
+		}
+		handler := NewHandler(service)
+		walletService := &mockWalletServiceForRoutes{}
+
+		r := gin.New()
+		v1 := r.Group("/api/v1")
+		RegisterRoutes(v1, handler, walletService)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/risk", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
