@@ -3,7 +3,9 @@ package dashboard
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/opinedajr/micro-investing/internal/patrimony"
 	"github.com/opinedajr/micro-investing/internal/position"
@@ -420,6 +422,313 @@ func TestService_Risk(t *testing.T) {
 
 		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo)
 		_, err := service.Risk(context.Background(), "wallet-id")
+
+		assert.Error(t, err)
+	})
+}
+
+func TestResolveEvolutionPeriod(t *testing.T) {
+	t.Run("default - last 12 months from reference", func(t *testing.T) {
+		reference := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+		input := EvolutionInput{}
+
+		startYear, startMonth, endYear, endMonth, err := resolveEvolutionPeriod(reference, input)
+
+		assert.NoError(t, err)
+		assert.Equal(t, 2025, startYear)
+		assert.Equal(t, 8, startMonth)
+		assert.Equal(t, 2026, endYear)
+		assert.Equal(t, 7, endMonth)
+	})
+
+	t.Run("year filter - full year", func(t *testing.T) {
+		reference := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+		input := EvolutionInput{Year: 2025}
+
+		startYear, startMonth, endYear, endMonth, err := resolveEvolutionPeriod(reference, input)
+
+		assert.NoError(t, err)
+		assert.Equal(t, 2025, startYear)
+		assert.Equal(t, 1, startMonth)
+		assert.Equal(t, 2025, endYear)
+		assert.Equal(t, 12, endMonth)
+	})
+
+	t.Run("year and quarter filter - Q2", func(t *testing.T) {
+		reference := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+		input := EvolutionInput{Year: 2026, Quarter: 2}
+
+		startYear, startMonth, endYear, endMonth, err := resolveEvolutionPeriod(reference, input)
+
+		assert.NoError(t, err)
+		assert.Equal(t, 2026, startYear)
+		assert.Equal(t, 4, startMonth)
+		assert.Equal(t, 2026, endYear)
+		assert.Equal(t, 6, endMonth)
+	})
+
+	t.Run("year and quarter filter - Q4", func(t *testing.T) {
+		reference := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+		input := EvolutionInput{Year: 2025, Quarter: 4}
+
+		startYear, startMonth, endYear, endMonth, err := resolveEvolutionPeriod(reference, input)
+
+		assert.NoError(t, err)
+		assert.Equal(t, 2025, startYear)
+		assert.Equal(t, 10, startMonth)
+		assert.Equal(t, 2025, endYear)
+		assert.Equal(t, 12, endMonth)
+	})
+
+	t.Run("error - quarter greater than 4", func(t *testing.T) {
+		reference := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+		input := EvolutionInput{Year: 2026, Quarter: 5}
+
+		_, _, _, _, err := resolveEvolutionPeriod(reference, input)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("year filter - quarter zero means full year", func(t *testing.T) {
+		reference := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+		input := EvolutionInput{Year: 2026, Quarter: 0}
+
+		startYear, startMonth, endYear, endMonth, err := resolveEvolutionPeriod(reference, input)
+
+		assert.NoError(t, err)
+		assert.Equal(t, 2026, startYear)
+		assert.Equal(t, 1, startMonth)
+		assert.Equal(t, 2026, endYear)
+		assert.Equal(t, 12, endMonth)
+	})
+
+	t.Run("error - negative quarter", func(t *testing.T) {
+		reference := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+		input := EvolutionInput{Year: 2026, Quarter: -1}
+
+		_, _, _, _, err := resolveEvolutionPeriod(reference, input)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - quarter without year", func(t *testing.T) {
+		reference := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+		input := EvolutionInput{Quarter: 1}
+
+		_, _, _, _, err := resolveEvolutionPeriod(reference, input)
+
+		assert.Error(t, err)
+	})
+}
+
+func TestService_Evolution(t *testing.T) {
+	t.Run("success - filters by year and quarter", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				data := map[string][]patrimony.TypeAmount{
+					"2026-4": {
+						{Type: patrimony.TypeStocks, Amount: 400000},
+						{Type: patrimony.TypeFixedIncome, Amount: 500000},
+						{Type: patrimony.TypeEmergencyReserve, Amount: 300000},
+					},
+					"2026-5": {
+						{Type: patrimony.TypeStocks, Amount: 500000},
+						{Type: patrimony.TypeFixedIncome, Amount: 500000},
+						{Type: patrimony.TypeEmergencyReserve, Amount: 350000},
+					},
+					"2026-6": {
+						{Type: patrimony.TypeStocks, Amount: 600000},
+						{Type: patrimony.TypeFixedIncome, Amount: 550000},
+						{Type: patrimony.TypeEmergencyReserve, Amount: 350000},
+					},
+				}
+				key := fmt.Sprintf("%d-%d", year, month)
+				return data[key], nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 2})
+
+		assert.NoError(t, err)
+		assert.Len(t, output.Total, 3)
+		assert.Equal(t, int64(1200000), output.Total[0].Amount)
+		assert.Equal(t, int64(1350000), output.Total[1].Amount)
+		assert.Equal(t, int64(1500000), output.Total[2].Amount)
+
+		assert.Len(t, output.ByCategory.FixedIncome, 3)
+		assert.Equal(t, int64(500000), output.ByCategory.FixedIncome[0].Amount)
+		assert.Equal(t, int64(500000), output.ByCategory.FixedIncome[1].Amount)
+		assert.Equal(t, int64(550000), output.ByCategory.FixedIncome[2].Amount)
+
+		assert.Len(t, output.ByCategory.Stocks, 3)
+		assert.Equal(t, int64(400000), output.ByCategory.Stocks[0].Amount)
+		assert.Equal(t, int64(500000), output.ByCategory.Stocks[1].Amount)
+		assert.Equal(t, int64(600000), output.ByCategory.Stocks[2].Amount)
+
+		assert.Len(t, output.ByCategory.EmergencyReserve, 3)
+		assert.Equal(t, int64(300000), output.ByCategory.EmergencyReserve[0].Amount)
+		assert.Equal(t, int64(350000), output.ByCategory.EmergencyReserve[1].Amount)
+		assert.Equal(t, int64(350000), output.ByCategory.EmergencyReserve[2].Amount)
+	})
+
+	t.Run("success - carry forward fills months without data", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				data := map[string][]patrimony.TypeAmount{
+					"2026-4": {
+						{Type: patrimony.TypeStocks, Amount: 400000},
+						{Type: patrimony.TypeFixedIncome, Amount: 500000},
+					},
+					"2026-6": {
+						{Type: patrimony.TypeStocks, Amount: 600000},
+						{Type: patrimony.TypeFixedIncome, Amount: 550000},
+					},
+				}
+				key := fmt.Sprintf("%d-%d", year, month)
+				return data[key], nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 2})
+
+		assert.NoError(t, err)
+		assert.Len(t, output.Total, 3)
+		assert.Equal(t, int64(900000), output.Total[0].Amount)
+		assert.Equal(t, int64(900000), output.Total[1].Amount)
+		assert.Equal(t, int64(1150000), output.Total[2].Amount)
+
+		assert.Equal(t, int64(500000), output.ByCategory.FixedIncome[1].Amount)
+		assert.Equal(t, int64(400000), output.ByCategory.Stocks[1].Amount)
+	})
+
+	t.Run("success - carry forward per category when partial data", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				data := map[string][]patrimony.TypeAmount{
+					"2026-4": {
+						{Type: patrimony.TypeStocks, Amount: 400000},
+						{Type: patrimony.TypeFixedIncome, Amount: 500000},
+						{Type: patrimony.TypeEmergencyReserve, Amount: 300000},
+					},
+					"2026-5": {
+						{Type: patrimony.TypeStocks, Amount: 500000},
+						{Type: patrimony.TypeFixedIncome, Amount: 500000},
+					},
+					"2026-6": {
+						{Type: patrimony.TypeFixedIncome, Amount: 550000},
+					},
+				}
+				key := fmt.Sprintf("%d-%d", year, month)
+				return data[key], nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 2})
+
+		assert.NoError(t, err)
+		assert.Len(t, output.Total, 3)
+		assert.Equal(t, int64(1200000), output.Total[0].Amount)
+		assert.Equal(t, int64(1000000), output.Total[1].Amount)
+		assert.Equal(t, int64(550000), output.Total[2].Amount)
+
+		assert.Len(t, output.ByCategory.FixedIncome, 3)
+		assert.Equal(t, int64(500000), output.ByCategory.FixedIncome[0].Amount)
+		assert.Equal(t, int64(500000), output.ByCategory.FixedIncome[1].Amount)
+		assert.Equal(t, int64(550000), output.ByCategory.FixedIncome[2].Amount)
+
+		assert.Len(t, output.ByCategory.Stocks, 3)
+		assert.Equal(t, int64(400000), output.ByCategory.Stocks[0].Amount)
+		assert.Equal(t, int64(500000), output.ByCategory.Stocks[1].Amount)
+		assert.Equal(t, int64(500000), output.ByCategory.Stocks[2].Amount)
+
+		assert.Len(t, output.ByCategory.EmergencyReserve, 3)
+		assert.Equal(t, int64(300000), output.ByCategory.EmergencyReserve[0].Amount)
+		assert.Equal(t, int64(300000), output.ByCategory.EmergencyReserve[1].Amount)
+		assert.Equal(t, int64(300000), output.ByCategory.EmergencyReserve[2].Amount)
+	})
+
+	t.Run("error - returns error for invalid quarter", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		_, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 5})
+
+		assert.Error(t, err)
+	})
+
+	t.Run("success - total includes all categories including fiis and liquid_cash", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				if year == 2026 && month == 4 {
+					return []patrimony.TypeAmount{
+						{Type: patrimony.TypeStocks, Amount: 400000},
+						{Type: patrimony.TypeFIIs, Amount: 100000},
+						{Type: patrimony.TypeFixedIncome, Amount: 500000},
+						{Type: patrimony.TypeEmergencyReserve, Amount: 300000},
+						{Type: patrimony.TypeLiquidCash, Amount: 50000},
+					}, nil
+				}
+				return nil, nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 2})
+
+		assert.NoError(t, err)
+		assert.Len(t, output.Total, 3)
+		assert.Equal(t, int64(1350000), output.Total[0].Amount)
+		assert.Equal(t, int64(1350000), output.Total[1].Amount)
+		assert.Equal(t, int64(1350000), output.Total[2].Amount)
+		assert.Len(t, output.ByCategory.FixedIncome, 3)
+		assert.Len(t, output.ByCategory.Stocks, 3)
+		assert.Len(t, output.ByCategory.EmergencyReserve, 3)
+	})
+
+	t.Run("success - default last 12 months when no filters", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				return []patrimony.TypeAmount{{Type: patrimony.TypeFixedIncome, Amount: 100000}}, nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{})
+
+		assert.NoError(t, err)
+		assert.Len(t, output.Total, 12)
+		assert.Len(t, output.ByCategory.FixedIncome, 12)
+	})
+
+	t.Run("success - returns empty series when no data and no previous value to carry forward", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				return []patrimony.TypeAmount{}, nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 2})
+
+		assert.NoError(t, err)
+		assert.Len(t, output.Total, 3)
+		assert.Equal(t, int64(0), output.Total[0].Amount)
+		assert.Equal(t, int64(0), output.Total[1].Amount)
+		assert.Equal(t, int64(0), output.Total[2].Amount)
+	})
+
+	t.Run("error - returns error when summing patrimony fails", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				return nil, errors.New("database error")
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		_, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026})
 
 		assert.Error(t, err)
 	})

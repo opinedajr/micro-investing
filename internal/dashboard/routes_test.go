@@ -109,4 +109,33 @@ func TestRegisterRoutes(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
+
+	t.Run("success - registers dashboard evolution route under /api/v1/wallets/:id/dashboard/evolution", func(t *testing.T) {
+		service := &mockDashboardService{
+			evolutionFunc: func(ctx context.Context, walletID string, input EvolutionInput) (*EvolutionOutput, error) {
+				return &EvolutionOutput{
+					Total: []EvolutionMonthOutput{
+						{Year: 2026, Month: 4, Amount: 1200000},
+					},
+					ByCategory: EvolutionCategoryOutput{
+						FixedIncome: []EvolutionMonthOutput{
+							{Year: 2026, Month: 4, Amount: 500000},
+						},
+					},
+				}, nil
+			},
+		}
+		handler := NewHandler(service)
+		walletService := &mockWalletServiceForRoutes{}
+
+		r := gin.New()
+		v1 := r.Group("/api/v1")
+		RegisterRoutes(v1, handler, walletService)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/evolution?year=2026&quarter=2", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
