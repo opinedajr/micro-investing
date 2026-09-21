@@ -14,6 +14,7 @@ type Service interface {
 	Allocation(ctx context.Context, walletID string) (*AllocationOutput, error)
 	Risk(ctx context.Context, walletID string) (*RiskOutput, error)
 	Evolution(ctx context.Context, walletID string, input EvolutionInput) (*EvolutionOutput, error)
+	Dividends(ctx context.Context, walletID string) (*DividendsOutput, error)
 }
 
 type dashboardService struct {
@@ -248,6 +249,10 @@ func (s *dashboardService) Risk(ctx context.Context, walletID string) (*RiskOutp
 		Items: items,
 		Total: total,
 	}, nil
+}
+
+func (s *dashboardService) Dividends(ctx context.Context, walletID string) (*DividendsOutput, error) {
+	return &DividendsOutput{Items: []DividendItem{}}, nil
 }
 
 func (s *dashboardService) Summary(ctx context.Context, walletID string) (*SummaryOutput, error) {
