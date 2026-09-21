@@ -733,3 +733,15 @@ func TestService_Evolution(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestService_Dividends(t *testing.T) {
+	t.Run("success - returns static empty dividends list", func(t *testing.T) {
+		service := NewService(&mockPatrimonyRepository{}, &mockPositionRepository{}, &mockStockRepository{})
+		output, err := service.Dividends(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, output)
+		assert.NotNil(t, output.Items)
+		assert.Len(t, output.Items, 0)
+	})
+}
