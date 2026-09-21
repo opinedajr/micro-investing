@@ -580,3 +580,24 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
   - `400 Bad Request` (`VALIDATION_ERROR`): invalid `year` or `quarter` format, `year` less than or equal to zero, `quarter` outside 1-4, or `quarter` without `year`
   - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
   - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
+
+### Dividends
+
+- **URL**: `GET /api/v1/wallets/:id/dashboard/dividends`
+- **Response**: `200 OK`
+
+```json
+{
+  "data": {
+    "items": []
+  }
+}
+```
+
+- Returns the yearly dividends history for the wallet
+- Currently returns a static empty list until the dividends epic is implemented
+- The frontend can already mount the (empty) chart without breaking
+
+- **Errors**:
+  - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
+  - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
