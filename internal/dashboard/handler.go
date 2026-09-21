@@ -82,6 +82,20 @@ func (h *Handler) Evolution(c *gin.Context) {
 	})
 }
 
+func (h *Handler) Dividends(c *gin.Context) {
+	walletID := c.Param("id")
+
+	output, err := h.service.Dividends(c.Request.Context(), walletID)
+	if err != nil {
+		respondInternalServerError(c)
+		return
+	}
+
+	c.JSON(http.StatusOK, api.Response[*DividendsOutput]{
+		Data: output,
+	})
+}
+
 func parseEvolutionInput(c *gin.Context) (EvolutionInput, bool) {
 	input := EvolutionInput{}
 	yearProvided := false
