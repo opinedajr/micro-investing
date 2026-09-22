@@ -1,0 +1,34 @@
+{
+  "name": "micro-investing",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@primeuix/themes": "^1.2.5",
+    "chart.js": "^4.5.1",
+    "pinia": "^3.0.4",
+    "primeicons": "^8.0.1",
+    "primevue": "^4.5.5",
+    "vue": "^3.5.43",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.13.6",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "@vue/test-utils": "^2.5.1",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8",
+    "vite": "^7.3.6",
+    "vitest": "^3.2.7",
+    "vue-tsc": "^2.2.12"
+  }
+}

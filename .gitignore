@@ -55,3 +55,10 @@ data/
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Web UI (Vue)
+web/node_modules/
+web/dist/
+web/.vite/
+internal/webui/dist/*
+!internal/webui/dist/.gitkeep
