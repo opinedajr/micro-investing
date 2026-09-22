@@ -1,26 +1,56 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 
 import DashboardCompositionCharts from '@/components/dashboard/DashboardCompositionCharts.vue'
+import DashboardEvolution from '@/components/dashboard/DashboardEvolution.vue'
 import DashboardKpiCards from '@/components/dashboard/DashboardKpiCards.vue'
 import { walletApi } from '@/lib/api'
 import { useDashboardStore } from '@/stores/dashboard'
 
 const store = useDashboardStore()
-const { summary, allocation, risk } = storeToRefs(store)
+const { summary, allocation, risk, evolution } = storeToRefs(store)
+
+const walletId = ref<string | null>(null)
+const selectedYear = ref<number | null>(null)
+const selectedQuarter = ref<number | null>(null)
 
 onMounted(async () => {
   try {
     const wallets = await walletApi.list()
-    const walletId = wallets[0]?.id
-    if (walletId) {
-      await store.fetchCurrentState(walletId)
+    const id = wallets[0]?.id
+    if (id) {
+      walletId.value = id
+      await Promise.all([store.fetchCurrentState(id), refetchEvolution()])
     }
   } catch (error) {
     store.error = error instanceof Error ? error.message : 'Unexpected error'
   }
 })
+
+async function refetchEvolution() {
+  if (!walletId.value) {
+    return
+  }
+  await store.fetchEvolution(
+    walletId.value,
+    selectedYear.value ?? undefined,
+    selectedQuarter.value ?? undefined,
+  )
+}
+
+function onYearChange(value: number | null) {
+  selectedYear.value = value
+  if (value === null) {
+    selectedQuarter.value = null
+  }
+  void refetchEvolution()
+}
+
+function onQuarterChange(value: number | null) {
+  selectedQuarter.value = value
+  void refetchEvolution()
+}
 </script>
 
 <template>
@@ -32,6 +62,13 @@ onMounted(async () => {
     <div class="dashboard__grid">
       <DashboardKpiCards :summary="summary" />
       <DashboardCompositionCharts :allocation="allocation" :risk="risk" />
+      <DashboardEvolution
+        :evolution="evolution"
+        :year="selectedYear"
+        :quarter="selectedQuarter"
+        @change-year="onYearChange"
+        @change-quarter="onQuarterChange"
+      />
     </div>
   </main>
 </template>
