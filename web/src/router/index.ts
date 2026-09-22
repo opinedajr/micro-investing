@@ -1,14 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import Dashboard from '@/pages/Dashboard.vue'
-
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: '/',
-      name: 'dashboard',
-      component: Dashboard,
+      component: () => import('@/layouts/AppLayout.vue'),
+      children: [
+        {
+          path: '',
+          name: 'dashboard',
+          component: () => import('@/pages/Dashboard.vue'),
+        },
+      ],
     },
     {
       path: '/:pathMatch(.*)*',
