@@ -1,10 +1,13 @@
 # Micro Investing
 
-Micro Investing is a **REST API Backend** built with **Go + Gin Gonic**.
+Micro Investing is a **REST API Backend** built with **Go + Gin Gonic** with an embedded **Vue 3 SPA** dashboard.
 
 ## 🚀 Overview
 
-The project provides a comprehensive API for:
+The project provides:
+
+- A REST API for investment portfolio management
+- A visual Dashboard SPA (Vue 3 + PrimeVue + Pinia + Chart.js) embedded into the Go binary and served at `/`
 
 ## 🏗 Architecture
 
@@ -24,9 +27,17 @@ This project follows a **Feature-Based Clean Architecture** pattern. Each featur
 ├── docs/                   # Documentation and samples
 ├── internal/
 │   ├── di/                 # Dependency Injection container
-│   └── shared/             # Shared utilities (config, logger, middleware)
-├── install/                # Production deployment scripts (install.sh, update.sh)
+│   ├── shared/             # Shared utilities (config, logger, middleware)
+│   └── web/                # Embedded frontend (SPA) serving
 ├── migrations/             # Database schema migrations
+├── src/                    # Vue 3 SPA (dashboard frontend)
+│   ├── assets/             # Global styles
+│   ├── components/dashboard/ # Presentational dashboard components
+│   ├── lib/                # API client and utilities (formatCurrencyBRL)
+│   ├── pages/              # Page components (Dashboard.vue)
+│   ├── router/             # Vue Router setup
+│   └── stores/             # Pinia stores (dashboard)
+├── index.html              # Vite entry point
 ├── Makefile                # Development automation commands
 └── .env.sample             # Environment variables template
 ```
@@ -35,6 +46,7 @@ This project follows a **Feature-Based Clean Architecture** pattern. Each featur
 
 Ensure you have the following installed:
 - **Go**: 1.23+
+- **Node.js**: 20.19+ (or 22.12+) with npm — required for the frontend Dashboard
 - **Make**: For running automation commands
 - **golang-migrate**: For database migrations — install with SQLite support:
   ```bash
@@ -105,6 +117,34 @@ Server starts at `http://localhost:3003` with automatic reload on file changes.
 make run
 ```
 
+## 💻 Frontend (Dashboard SPA)
+
+The Dashboard is a Vue 3 SPA (Vite + TypeScript + PrimeVue + Pinia + Chart.js) that lives in `src/` and is **embedded into the Go binary** via `go:embed` (`internal/web/`). In production the API server serves the built SPA at `/` with client-side routing fallback; unknown `/api/*` routes still return the standard JSON 404 envelope.
+
+### 1. Install frontend dependencies
+```bash
+make install-frontend
+```
+
+### 2. Development mode
+Run the Go API (`make run-dev`, port 3003) and the Vite dev server in parallel:
+```bash
+make dev-frontend
+```
+The dev server runs at `http://localhost:5173` and proxies `/api` requests to the Go API.
+
+### 3. Build for embedding
+```bash
+make build-frontend
+```
+Compiles the SPA into `internal/web/dist`, which is embedded by `internal/web` at Go compile time. A placeholder `index.html` is committed in that directory so `go build`/`go test` work on checkouts without Node.js; after building the frontend locally, restore the placeholder before committing (`git restore internal/web/dist/index.html`).
+
+### 4. Tests
+```bash
+make test-frontend
+```
+Runs the Vitest suites: `formatCurrencyBRL` utility, the `useDashboardStore` Pinia store (fetch actions mapping API payloads into state) and the `Dashboard.vue` orchestration (KPI cards rendering store values as BRL-formatted currency).
+
 ## 🗄 Database Migrations
 
 Migrations are managed using `golang-migrate`. The `DB_URL` used by the `migrate`/`rollback` targets is selected automatically based on `DB_DRIVER` in your `.env`:
@@ -127,6 +167,7 @@ Commands:
 ## 🧪 Testing
 
 - **Run all tests**: `make test`
+- **Run frontend tests**: `make test-frontend`
 - **Run tests with verbose output**: `make test-v`
 - **Check test coverage**: `make test-cover`
 
@@ -194,6 +235,10 @@ For detailed request/response schemas see `docs/api.md`.
 | `make test-cover` | Generate coverage report |
 | `make lint` | Run linter (golangci-lint) |
 | `make install-deps` | Install Go dependencies |
+| `make install-frontend` | Install frontend dependencies (npm install) |
+| `make dev-frontend` | Run the Vite dev server with `/api` proxy |
+| `make build-frontend` | Build the SPA into `internal/web/dist` (embedded in the binary) |
+| `make test-frontend` | Run frontend tests (Vitest) |
 | `make install-tools` | Install dev tools (reflex, golangci-lint) |
 | `make migrate` | Run database migrations |
 | `make rollback` | Rollback last migration |

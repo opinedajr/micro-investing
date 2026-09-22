@@ -55,3 +55,9 @@ data/
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Frontend
+node_modules/
+internal/web/dist/*
+!internal/web/dist/index.html
+!internal/web/dist/favicon.svg

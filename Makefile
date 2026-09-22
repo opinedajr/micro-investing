@@ -1,6 +1,6 @@
 include .env
 
-.PHONY: help setup dev dev-up dev-down build test clean docker docker-down install-deps run
+.PHONY: help setup dev dev-up dev-down build test clean docker docker-down install-deps install-frontend dev-frontend build-frontend test-frontend run
 
 BINARY_NAME=stats-central-api
 DOCKER_COMPOSE_FILE=docker-compose.yml
@@ -20,6 +20,24 @@ install-deps: ## Instala as dependências do Go
 	@echo "📦 Instalando dependências..."
 	@go mod download
 	@go mod tidy
+
+install-frontend: ## Instala as dependências do frontend (Node.js)
+	@echo "📦 Instalando dependências do frontend..."
+	@npm install
+
+dev-frontend: ## Inicia o servidor de desenvolvimento do frontend (Vite)
+	@echo "🔥 Iniciando frontend com hot reload..."
+	@echo "📍 Frontend rodará em: http://localhost:5173 (proxy /api -> localhost:3003)"
+	@npm run dev
+
+build-frontend: ## Compila o frontend para internal/web/dist (embutido no binário Go)
+	@echo "🔨 Compilando frontend..."
+	@npm run build
+	@echo "✅ Frontend compilado em internal/web/dist"
+
+test-frontend: ## Executa os testes do frontend (Vitest)
+	@echo "🧪 Executando testes do frontend..."
+	@npm test
 
 # Instalar ferramentas de desenvolvimento
 install-tools:
