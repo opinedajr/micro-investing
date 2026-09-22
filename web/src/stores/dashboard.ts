@@ -48,7 +48,7 @@ export const useDashboardStore = defineStore('dashboard', {
     async fetchEvolution(walletId: string, year?: number, quarter?: number) {
       this.error = null
       try {
-        this.evolution = await dashboardApi.evolution(walletId, year, quarter)
+        this.evolution = (await dashboardApi.evolution(walletId, year, quarter)) ?? null
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Unexpected error'
       }
