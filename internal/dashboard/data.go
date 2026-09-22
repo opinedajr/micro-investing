@@ -49,3 +49,12 @@ type EvolutionInput struct {
 	Year    int
 	Quarter int
 }
+
+type DividendItem struct {
+	Year   int   `json:"year"`
+	Amount int64 `json:"amount"`
+}
+
+type DividendsOutput struct {
+	Items []DividendItem `json:"items"`
+}

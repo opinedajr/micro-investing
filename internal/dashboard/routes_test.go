@@ -138,4 +138,24 @@ func TestRegisterRoutes(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
+
+	t.Run("success - registers dashboard dividends route under /api/v1/wallets/:id/dashboard/dividends", func(t *testing.T) {
+		service := &mockDashboardService{
+			dividendsFunc: func(ctx context.Context, walletID string) (*DividendsOutput, error) {
+				return &DividendsOutput{Items: []DividendItem{}}, nil
+			},
+		}
+		handler := NewHandler(service)
+		walletService := &mockWalletServiceForRoutes{}
+
+		r := gin.New()
+		v1 := r.Group("/api/v1")
+		RegisterRoutes(v1, handler, walletService)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/dashboard/dividends", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
