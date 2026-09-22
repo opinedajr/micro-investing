@@ -1,6 +1,6 @@
 include .env
 
-.PHONY: help setup dev dev-up dev-down build test clean docker docker-down install-deps install-frontend dev-frontend build-frontend test-frontend run
+.PHONY: help setup dev dev-up dev-down build test clean docker docker-down install-deps web-build web-dev web-test run
 
 BINARY_NAME=stats-central-api
 DOCKER_COMPOSE_FILE=docker-compose.yml
@@ -21,23 +21,22 @@ install-deps: ## Instala as dependências do Go
 	@go mod download
 	@go mod tidy
 
-install-frontend: ## Instala as dependências do frontend (Node.js)
-	@echo "📦 Instalando dependências do frontend..."
-	@npm install
+web-build: ## Compila o frontend Vue e copia para o diretório de embed do Go
+	@echo "🔨 Compilando frontend..."
+	cd web && npm install && npm run build
+	rm -rf internal/webui/dist
+	cp -r web/dist internal/webui/dist
+	touch internal/webui/dist/.gitkeep
+	@echo "✅ Frontend compilado em internal/webui/dist"
 
-dev-frontend: ## Inicia o servidor de desenvolvimento do frontend (Vite)
+web-dev: ## Inicia o servidor de desenvolvimento do frontend (Vite, proxy /api -> Go)
 	@echo "🔥 Iniciando frontend com hot reload..."
 	@echo "📍 Frontend rodará em: http://localhost:5173 (proxy /api -> localhost:3003)"
-	@npm run dev
+	cd web && npm run dev
 
-build-frontend: ## Compila o frontend para internal/web/dist (embutido no binário Go)
-	@echo "🔨 Compilando frontend..."
-	@npm run build
-	@echo "✅ Frontend compilado em internal/web/dist"
-
-test-frontend: ## Executa os testes do frontend (Vitest)
-	@echo "🧪 Executando testes do frontend..."
-	@npm test
+web-test: ## Executa os testes do frontend (Vitest)
+	@echo "🧪 Executando os testes do frontend..."
+	cd web && npm test
 
 # Instalar ferramentas de desenvolvimento
 install-tools:
@@ -57,7 +56,7 @@ dev-down: ## Para os serviços de desenvolvimento
 	@docker compose down postgres keycloak
 
 # Build
-build: ## Compila a aplicação
+build: web-build ## Compila a aplicação (inclui o frontend)
 	@echo "🔨 Compilando aplicação..."
 	@go build -ldflags='-s -w' -o bin/$(BINARY_NAME) cmd/api/main.go
 	@echo "✅ Binário criado: bin/$(BINARY_NAME)"
@@ -100,8 +99,9 @@ lint: ## Executa o linter
 
 # Limpeza
 clean: ## Remove arquivos temporários e binários
-	@echo "🧹 Limpando arquivos temporários..."
-	@rm -rf bin/
+	@echo "🧹 Limpando arquivos temporários e binários..."
+	@rm -rf bin/ web/dist/
+	@rm -rf internal/webui/dist/*
 	@rm -f coverage.out coverage.html
 	@docker system prune -f
 	@echo "✅ Limpeza concluída"

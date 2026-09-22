@@ -122,27 +122,22 @@ make run
 
 The Dashboard is a Vue 3 SPA (Vite + TypeScript + PrimeVue + Pinia + Chart.js) that lives in `web/` (an independent frontend project) and is **embedded into the Go binary** via `go:embed` (`internal/webui/`). In production the API server serves the built SPA at `/` with client-side routing fallback; unknown `/api/*` routes still return the standard JSON 404 envelope.
 
-### 1. Install frontend dependencies
-```bash
-make install-frontend
-```
-
-### 2. Development mode
+### 1. Development mode
 Run the Go API (`make run-dev`, port 3003) and the Vite dev server in parallel:
 ```bash
-make dev-frontend
+make web-dev
 ```
-The dev server runs at `http://localhost:5173` and proxies `/api` requests to the Go API.
+The dev server runs at `http://localhost:5173` and proxies `/api` requests to the Go API (dependencies are installed automatically by `make web-build`; for a standalone install run `cd web && npm install`).
 
-### 3. Build for embedding
+### 2. Build for embedding
 ```bash
-make build-frontend
+make web-build
 ```
-Compiles the SPA into `internal/webui/dist`, which is embedded by `internal/webui` at Go compile time. Only a `.gitkeep` is versioned in that directory (build output is never committed); run `make build-frontend` to populate it before building the Go binary.
+Builds the SPA into `web/dist` and copies it to `internal/webui/dist`, which is embedded by `internal/webui` at Go compile time. Only a `.gitkeep` is versioned in that directory (build output is never committed); `make build` runs this step automatically before compiling the Go binary.
 
-### 4. Tests
+### 3. Tests
 ```bash
-make test-frontend
+make web-test
 ```
 Runs the Vitest suites: `formatCurrencyBRL` utility, the `useDashboardStore` Pinia store (fetch actions mapping API payloads into state) and the `Dashboard.vue` orchestration (KPI cards rendering store values as BRL-formatted currency).
 
@@ -168,7 +163,7 @@ Commands:
 ## 🧪 Testing
 
 - **Run all tests**: `make test`
-- **Run frontend tests**: `make test-frontend`
+- **Run frontend tests**: `make web-test`
 - **Run tests with verbose output**: `make test-v`
 - **Check test coverage**: `make test-cover`
 
@@ -236,10 +231,9 @@ For detailed request/response schemas see `docs/api.md`.
 | `make test-cover` | Generate coverage report |
 | `make lint` | Run linter (golangci-lint) |
 | `make install-deps` | Install Go dependencies |
-| `make install-frontend` | Install frontend dependencies (npm install) |
-| `make dev-frontend` | Run the Vite dev server with `/api` proxy |
-| `make build-frontend` | Build the SPA into `internal/web/dist` (embedded in the binary) |
-| `make test-frontend` | Run frontend tests (Vitest) |
+| `make web-build` | Build the SPA and copy it to `internal/webui/dist` (embedded in the binary) |
+| `make web-dev` | Run the Vite dev server with `/api` proxy |
+| `make web-test` | Run frontend tests (Vitest) |
 | `make install-tools` | Install dev tools (reflex, golangci-lint) |
 | `make migrate` | Run database migrations |
 | `make rollback` | Rollback last migration |
