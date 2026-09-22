@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 
 import { dashboardApi, walletApi } from '@/lib/api'
+import DashboardCompositionCharts from '@/components/dashboard/DashboardCompositionCharts.vue'
 import DashboardKpiCards from '@/components/dashboard/DashboardKpiCards.vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import Dashboard from './Dashboard.vue'
@@ -55,6 +56,11 @@ describe('Dashboard', () => {
     expect(wrapper.text()).toContain('R$ 10,50')
     expect(wrapper.text()).toContain('R$ 20,50')
     expect(wrapper.text()).toContain('R$ 30,50')
+
+    const compositionCharts = wrapper.findComponent(DashboardCompositionCharts)
+    expect(compositionCharts.exists()).toBe(true)
+    expect(compositionCharts.props('allocation')).toEqual({ items: [], total: 0 })
+    expect(compositionCharts.props('risk')).toEqual({ items: [], total: 0 })
   })
 
   it('reacts to store summary changes by re-rendering the kpi values', async () => {

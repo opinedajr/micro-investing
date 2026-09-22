@@ -2,12 +2,13 @@
 import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 
+import DashboardCompositionCharts from '@/components/dashboard/DashboardCompositionCharts.vue'
 import DashboardKpiCards from '@/components/dashboard/DashboardKpiCards.vue'
 import { walletApi } from '@/lib/api'
 import { useDashboardStore } from '@/stores/dashboard'
 
 const store = useDashboardStore()
-const { summary } = storeToRefs(store)
+const { summary, allocation, risk } = storeToRefs(store)
 
 onMounted(async () => {
   try {
@@ -30,6 +31,7 @@ onMounted(async () => {
 
     <div class="dashboard__grid">
       <DashboardKpiCards :summary="summary" />
+      <DashboardCompositionCharts :allocation="allocation" :risk="risk" />
     </div>
   </main>
 </template>
