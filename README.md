@@ -119,7 +119,7 @@ make run
 
 ## 💻 Frontend (Dashboard SPA)
 
-The Dashboard is a Vue 3 SPA (Vite + TypeScript + PrimeVue + Pinia + Chart.js) that lives in `src/` and is **embedded into the Go binary** via `go:embed` (`internal/web/`). In production the API server serves the built SPA at `/` with client-side routing fallback; unknown `/api/*` routes still return the standard JSON 404 envelope.
+The Dashboard is a Vue 3 SPA (Vite + TypeScript + PrimeVue + Pinia + Chart.js) that lives in `src/` and is **embedded into the Go binary** via `go:embed` (`internal/webui/`). In production the API server serves the built SPA at `/` with client-side routing fallback; unknown `/api/*` routes still return the standard JSON 404 envelope.
 
 ### 1. Install frontend dependencies
 ```bash
@@ -137,7 +137,7 @@ The dev server runs at `http://localhost:5173` and proxies `/api` requests to th
 ```bash
 make build-frontend
 ```
-Compiles the SPA into `internal/web/dist`, which is embedded by `internal/web` at Go compile time. A placeholder `index.html` is committed in that directory so `go build`/`go test` work on checkouts without Node.js; after building the frontend locally, restore the placeholder before committing (`git restore internal/web/dist/index.html`).
+Compiles the SPA into `internal/webui/dist`, which is embedded by `internal/webui` at Go compile time. Only a `.gitkeep` is versioned in that directory (build output is never committed); run `make build-frontend` to populate it before building the Go binary.
 
 ### 4. Tests
 ```bash

@@ -56,8 +56,7 @@ data/
 *.db-wal
 *.db-shm
 
-# Frontend
+# Web UI (Vue)
 node_modules/
-internal/web/dist/*
-!internal/web/dist/index.html
-!internal/web/dist/favicon.svg
+internal/webui/dist/*
+!internal/webui/dist/.gitkeep

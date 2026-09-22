@@ -11,7 +11,7 @@ import (
 	"github.com/opinedajr/micro-investing/internal/position"
 	"github.com/opinedajr/micro-investing/internal/stock"
 	"github.com/opinedajr/micro-investing/internal/wallet"
-	"github.com/opinedajr/micro-investing/internal/web"
+	"github.com/opinedajr/micro-investing/internal/webui"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 	stock.RegisterRoutes(v1, container.StockHandler())
 	position.RegisterRoutes(v1, container.PositionHandler(), container.WalletService())
 	dashboard.RegisterRoutes(v1, container.DashboardHandler(), container.WalletService())
-	web.RegisterRoutes(r)
+	webui.RegisterRoutes(r)
 
 	log.Fatal(r.Run(":" + port))
 }
