@@ -139,7 +139,7 @@ Builds the SPA into `web/dist` and copies it to `internal/webui/dist`, which is 
 ```bash
 make web-test
 ```
-Runs the Vitest suites: `formatCurrencyBRL` utility, the `useDashboardStore` Pinia store (fetch actions mapping API payloads into state) and the `Dashboard.vue` orchestration (KPI cards rendering store values as BRL-formatted currency).
+Runs the Vitest suites: `formatCurrencyBRL` utility, the `useDashboardStore` Pinia store (fetch actions mapping API payloads into state), the `Dashboard.vue` orchestration (KPI cards rendering store values as BRL-formatted currency) and the `DashboardCompositionCharts.vue` component (allocation doughnut, half-circle risk gauge and the reserved dividends empty state). PrimeVue's `<Chart>` is mocked globally (`web/vitest.setup.ts`) so tests assert component behavior without touching Chart.js internals.
 
 ## 🗄 Database Migrations
 
