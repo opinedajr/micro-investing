@@ -28,16 +28,17 @@ This project follows a **Feature-Based Clean Architecture** pattern. Each featur
 ├── internal/
 │   ├── di/                 # Dependency Injection container
 │   ├── shared/             # Shared utilities (config, logger, middleware)
-│   └── web/                # Embedded frontend (SPA) serving
+│   └── webui/              # Embedded frontend (SPA) serving (embed.go, spa.go)
 ├── migrations/             # Database schema migrations
-├── src/                    # Vue 3 SPA (dashboard frontend)
-│   ├── assets/             # Global styles
-│   ├── components/dashboard/ # Presentational dashboard components
-│   ├── lib/                # API client and utilities (formatCurrencyBRL)
-│   ├── pages/              # Page components (Dashboard.vue)
-│   ├── router/             # Vue Router setup
-│   └── stores/             # Pinia stores (dashboard)
-├── index.html              # Vite entry point
+├── web/                    # Vue 3 SPA (dashboard frontend, independent project)
+│   ├── public/             # Static assets copied verbatim on build
+│   └── src/
+│       ├── assets/         # Global styles
+│       ├── components/dashboard/ # Presentational dashboard components
+│       ├── lib/            # API client and utilities (formatCurrencyBRL)
+│       ├── pages/          # Page components (Dashboard.vue)
+│       ├── router/         # Vue Router setup
+│       └── stores/         # Pinia stores (dashboard)
 ├── Makefile                # Development automation commands
 └── .env.sample             # Environment variables template
 ```
@@ -119,7 +120,7 @@ make run
 
 ## 💻 Frontend (Dashboard SPA)
 
-The Dashboard is a Vue 3 SPA (Vite + TypeScript + PrimeVue + Pinia + Chart.js) that lives in `src/` and is **embedded into the Go binary** via `go:embed` (`internal/webui/`). In production the API server serves the built SPA at `/` with client-side routing fallback; unknown `/api/*` routes still return the standard JSON 404 envelope.
+The Dashboard is a Vue 3 SPA (Vite + TypeScript + PrimeVue + Pinia + Chart.js) that lives in `web/` (an independent frontend project) and is **embedded into the Go binary** via `go:embed` (`internal/webui/`). In production the API server serves the built SPA at `/` with client-side routing fallback; unknown `/api/*` routes still return the standard JSON 404 envelope.
 
 ### 1. Install frontend dependencies
 ```bash

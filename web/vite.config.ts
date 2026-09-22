@@ -12,10 +12,11 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'internal/web/dist',
-    emptyOutDir: false,
+    outDir: 'dist',
+    emptyOutDir: true,
   },
   server: {
+    port: 5173,
     proxy: {
       '/api': 'http://localhost:3003',
     },
