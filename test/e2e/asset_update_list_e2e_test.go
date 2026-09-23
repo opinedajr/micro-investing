@@ -54,6 +54,37 @@ func (s *E2ESuite) TestAsset_Update() {
 	arr.First().Object().Value("amount").Number().IsEqual(200000)
 }
 
+func (s *E2ESuite) TestAsset_Update_DateOnly() {
+	walletID := s.createWallet("Carteira Update DateOnly")
+	assetID := s.createAsset(walletID, "stocks", "2026-07-15T12:00:00Z", "PETR4 - Petrobras", 150000)
+
+	resp := s.expect.PUT("/api/v1/wallets/{walletId}/assets/{id}").
+		WithPath("walletId", walletID).
+		WithPath("id", assetID).
+		WithJSON(map[string]interface{}{
+			"type":        "stocks",
+			"date":        "2026-07-20",
+			"description": "PETR4 - Petrobras (ajustado)",
+			"amount":      200000,
+		}).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Object()
+
+	resp.Value("date").String().IsEqual("2026-07-20T00:00:00Z")
+
+	arr := s.expect.GET("/api/v1/wallets/{walletId}/patrimonies").
+		WithPath("walletId", walletID).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Array()
+
+	arr.Length().IsEqual(1)
+	arr.First().Object().Value("year").Number().IsEqual(2026)
+	arr.First().Object().Value("month").Number().IsEqual(7)
+	arr.First().Object().Value("amount").Number().IsEqual(200000)
+}
+
 func (s *E2ESuite) TestAsset_Update_ChangeType_RecalculatesPatrimony() {
 	walletID := s.createWallet("Carteira Update Type")
 	assetID := s.createAsset(walletID, "stocks", "2026-07-15T12:00:00Z", "Acao Original", 150000)
