@@ -150,7 +150,7 @@ Common error codes:
 
 ## Assets
 
-Individual investment launches. All monetary values are integer cents (e.g. `150000` means R$ 1.500,00). The `date` must be an RFC3339 timestamp and cannot be in the future. The `description` must be between 3 and 100 characters. The `amount` must be greater than zero.
+Individual investment launches. All monetary values are integer cents (e.g. `150000` means R$ 1.500,00). The `date` accepts either a date-only value (`YYYY-MM-DD`, interpreted as midnight UTC, e.g. `2026-07-15`) or a full RFC3339 timestamp (e.g. `2026-07-15T12:00:00Z` or with offset), and cannot be in the future. Responses always echo `date` as an RFC3339 timestamp. The `description` must be between 3 and 100 characters. The `amount` must be greater than zero.
 
 Creating, updating or deleting an asset automatically recalculates the corresponding patrimony record (`SUM(amount)` of all assets for the same wallet/type/year/month) within the same transaction. When an update changes the asset's `date` and/or `type` across year/month or type boundaries, both the original and the new (wallet/type/year/month) patrimony records are recalculated.
 
@@ -163,11 +163,13 @@ Valid asset types (`type`): same as patrimony.
 ```json
 {
   "type": "stocks",
-  "date": "2026-07-15T12:00:00Z",
+  "date": "2026-07-15",
   "description": "PETR4 - Petrobras",
   "amount": 150000
 }
 ```
+
+A date-only `date` (`YYYY-MM-DD`) is interpreted as midnight UTC of that day and echoed back as `2026-07-15T00:00:00Z`.
 
 - **Response**: `201 Created`
 
