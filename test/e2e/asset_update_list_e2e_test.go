@@ -211,6 +211,24 @@ func (s *E2ESuite) TestAsset_Update_FutureDate() {
 		JSON().Object().Value("error").Object().Value("code").String().IsEqual("VALIDATION_ERROR")
 }
 
+func (s *E2ESuite) TestAsset_Update_FutureDateOnly() {
+	walletID := s.createWallet("Carteira Update Future DateOnly")
+	assetID := s.createAsset(walletID, "stocks", "2026-07-15T12:00:00Z", "Acao", 1000)
+
+	s.expect.PUT("/api/v1/wallets/{walletId}/assets/{id}").
+		WithPath("walletId", walletID).
+		WithPath("id", assetID).
+		WithJSON(map[string]interface{}{
+			"type":        "stocks",
+			"date":        "2099-01-01",
+			"description": "Data Futura",
+			"amount":      1000,
+		}).
+		Expect().
+		Status(http.StatusUnprocessableEntity).
+		JSON().Object().Value("error").Object().Value("code").String().IsEqual("VALIDATION_ERROR")
+}
+
 func (s *E2ESuite) TestAsset_Update_InvalidDateFormat() {
 	walletID := s.createWallet("Carteira Update BadDate")
 	assetID := s.createAsset(walletID, "stocks", "2026-07-15T12:00:00Z", "Acao", 1000)
