@@ -108,9 +108,9 @@ func (s *patrimonyService) CreateAsset(ctx context.Context, input CreateAssetInp
 		return nil, fmt.Errorf("asset repository not configured")
 	}
 
-	parsedDate, err := time.Parse(time.RFC3339, input.Date)
+	parsedDate, err := parseAssetDate(input.Date)
 	if err != nil {
-		return nil, ErrInvalidAssetDate
+		return nil, err
 	}
 
 	if err := validateAssetInput(input.Type, parsedDate, input.Description, input.Amount); err != nil {
@@ -142,9 +142,9 @@ func (s *patrimonyService) UpdateAsset(ctx context.Context, id string, input Upd
 		return nil, fmt.Errorf("asset repository not configured")
 	}
 
-	parsedDate, err := time.Parse(time.RFC3339, input.Date)
+	parsedDate, err := parseAssetDate(input.Date)
 	if err != nil {
-		return nil, ErrInvalidAssetDate
+		return nil, err
 	}
 
 	if err := validateAssetInput(input.Type, parsedDate, input.Description, input.Amount); err != nil {
@@ -272,6 +272,19 @@ func validatePatrimonyInput(year int, month int, assetType AssetType, amount int
 		return ErrInvalidPatrimonyAmount
 	}
 	return nil
+}
+
+func parseAssetDate(raw string) (time.Time, error) {
+	dateOnly, err := time.Parse("2006-01-02", raw)
+	if err == nil {
+		return dateOnly.UTC(), nil
+	}
+
+	parsed, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}, ErrInvalidAssetDate
+	}
+	return parsed, nil
 }
 
 func validateAssetInput(assetType AssetType, date time.Time, description string, amount int64) error {

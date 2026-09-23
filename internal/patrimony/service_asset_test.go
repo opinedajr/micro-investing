@@ -140,6 +140,88 @@ func TestService_CreateAsset(t *testing.T) {
 		assert.True(t, updatedPatrimony)
 	})
 
+	t.Run("success - accepts date-only format as midnight UTC", func(t *testing.T) {
+		now := time.Now()
+		var capturedAsset *Asset
+		var sumYear, sumMonth int
+
+		patrimonyRepo := &mockPatrimonyRepository{
+			runInTransactionFn: func(ctx context.Context, fn func(ctx context.Context) error) error {
+				return fn(ctx)
+			},
+		}
+		assetRepo := &mockAssetRepository{
+			createFunc: func(ctx context.Context, asset *Asset) error {
+				asset.ID = "asset-id"
+				asset.CreatedAt = now
+				asset.UpdatedAt = now
+				capturedAsset = asset
+				return nil
+			},
+			sumFunc: func(ctx context.Context, walletID string, assetType AssetType, year int, month int) (int64, error) {
+				sumYear = year
+				sumMonth = month
+				return 150000, nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, assetRepo)
+		input := CreateAssetInput{
+			WalletID:    "wallet-id",
+			Type:        TypeStocks,
+			Date:        "2026-07-15",
+			Description: "PETR4 - Petrobras",
+			Amount:      150000,
+		}
+
+		output, err := service.CreateAsset(context.Background(), input)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, output)
+		assert.Equal(t, "2026-07-15T00:00:00Z", output.Date)
+		assert.True(t, capturedAsset.Date.Equal(time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)))
+		assert.Equal(t, time.UTC, capturedAsset.Date.Location())
+		assert.Equal(t, 2026, sumYear)
+		assert.Equal(t, 7, sumMonth)
+	})
+
+	t.Run("success - date-only at month boundary keeps patrimony bucket", func(t *testing.T) {
+		var sumYear, sumMonth int
+
+		patrimonyRepo := &mockPatrimonyRepository{
+			runInTransactionFn: func(ctx context.Context, fn func(ctx context.Context) error) error {
+				return fn(ctx)
+			},
+		}
+		assetRepo := &mockAssetRepository{
+			createFunc: func(ctx context.Context, asset *Asset) error {
+				asset.ID = "asset-id"
+				return nil
+			},
+			sumFunc: func(ctx context.Context, walletID string, assetType AssetType, year int, month int) (int64, error) {
+				sumYear = year
+				sumMonth = month
+				return 150000, nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, assetRepo)
+		input := CreateAssetInput{
+			WalletID:    "wallet-id",
+			Type:        TypeStocks,
+			Date:        "2026-07-31",
+			Description: "PETR4 - Petrobras",
+			Amount:      150000,
+		}
+
+		output, err := service.CreateAsset(context.Background(), input)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, output)
+		assert.Equal(t, 2026, sumYear)
+		assert.Equal(t, 7, sumMonth)
+	})
+
 	t.Run("error - returns error for invalid date format", func(t *testing.T) {
 		patrimonyRepo := &mockPatrimonyRepository{
 			runInTransactionFn: func(ctx context.Context, fn func(ctx context.Context) error) error {
@@ -153,6 +235,29 @@ func TestService_CreateAsset(t *testing.T) {
 			WalletID:    "wallet-id",
 			Type:        TypeStocks,
 			Date:        "invalid-date",
+			Description: "Description valid",
+			Amount:      150000,
+		}
+
+		_, err := service.CreateAsset(context.Background(), input)
+
+		assert.Error(t, err)
+		assert.Equal(t, ErrInvalidAssetDate, err)
+	})
+
+	t.Run("error - returns error for future date-only format", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			runInTransactionFn: func(ctx context.Context, fn func(ctx context.Context) error) error {
+				return fn(ctx)
+			},
+		}
+		assetRepo := &mockAssetRepository{}
+
+		service := NewService(patrimonyRepo, assetRepo)
+		input := CreateAssetInput{
+			WalletID:    "wallet-id",
+			Type:        TypeStocks,
+			Date:        "2099-01-01",
 			Description: "Description valid",
 			Amount:      150000,
 		}
@@ -633,6 +738,53 @@ func TestService_UpdateAsset(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Equal(t, ErrAssetNotFound, err)
+	})
+
+	t.Run("success - accepts date-only format as midnight UTC", func(t *testing.T) {
+		oldDate := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
+
+		patrimonyRepo := &mockPatrimonyRepository{
+			runInTransactionFn: func(ctx context.Context, fn func(ctx context.Context) error) error {
+				return fn(ctx)
+			},
+			findByWalletYearMonthTypeFn: func(ctx context.Context, walletID string, year int, month int, assetType AssetType) (*Patrimony, error) {
+				return &Patrimony{
+					ID:       "existing-id",
+					WalletID: walletID,
+					Year:     year,
+					Month:    month,
+					Type:     assetType,
+					Amount:   150000,
+				}, nil
+			},
+		}
+		assetRepo := &mockAssetRepository{
+			findByIDFunc: func(ctx context.Context, id string) (*Asset, error) {
+				return &Asset{
+					ID:          id,
+					WalletID:    "wallet-id",
+					Type:        TypeStocks,
+					Date:        oldDate,
+					Description: "PETR4 - Petrobras",
+					Amount:      150000,
+				}, nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, assetRepo)
+		input := UpdateAssetInput{
+			WalletID:    "wallet-id",
+			Type:        TypeStocks,
+			Date:        "2026-07-20",
+			Description: "PETR4 - Petrobras (ajustado)",
+			Amount:      200000,
+		}
+
+		output, err := service.UpdateAsset(context.Background(), "asset-id", input)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, output)
+		assert.Equal(t, "2026-07-20T00:00:00Z", output.Date)
 	})
 
 	t.Run("error - returns error for invalid date format", func(t *testing.T) {
