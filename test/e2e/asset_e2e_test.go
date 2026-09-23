@@ -204,6 +204,66 @@ func (s *E2ESuite) TestAsset_Create_FutureDate() {
 		JSON().Object().Value("error").Object().Value("code").String().IsEqual("VALIDATION_ERROR")
 }
 
+func (s *E2ESuite) TestAsset_Create_DateOnly() {
+	walletID := s.createWallet("Carteira DateOnly")
+
+	resp := s.expect.POST("/api/v1/wallets/{walletId}/assets").
+		WithPath("walletId", walletID).
+		WithJSON(map[string]interface{}{
+			"type":        "stocks",
+			"date":        "2026-07-15",
+			"description": "PETR4 - Petrobras",
+			"amount":      150000,
+		}).
+		Expect().
+		Status(http.StatusCreated).
+		JSON().Object().Value("data").Object()
+
+	resp.Value("date").String().IsEqual("2026-07-15T00:00:00Z")
+}
+
+func (s *E2ESuite) TestAsset_Create_DateOnly_MonthBoundaryKeepsBucket() {
+	walletID := s.createWallet("Carteira DateOnly Boundary")
+
+	s.expect.POST("/api/v1/wallets/{walletId}/assets").
+		WithPath("walletId", walletID).
+		WithJSON(map[string]interface{}{
+			"type":        "stocks",
+			"date":        "2026-07-31",
+			"description": "PETR4 - Petrobras",
+			"amount":      150000,
+		}).
+		Expect().
+		Status(http.StatusCreated)
+
+	arr := s.expect.GET("/api/v1/wallets/{walletId}/patrimonies").
+		WithPath("walletId", walletID).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Array()
+
+	arr.Length().IsEqual(1)
+	arr.First().Object().Value("year").Number().IsEqual(2026)
+	arr.First().Object().Value("month").Number().IsEqual(7)
+	arr.First().Object().Value("amount").Number().IsEqual(150000)
+}
+
+func (s *E2ESuite) TestAsset_Create_FutureDateOnly() {
+	walletID := s.createWallet("Carteira FutDateOnly")
+
+	s.expect.POST("/api/v1/wallets/{walletId}/assets").
+		WithPath("walletId", walletID).
+		WithJSON(map[string]interface{}{
+			"type":        "stocks",
+			"date":        "2099-01-01",
+			"description": "Data Futura",
+			"amount":      1000,
+		}).
+		Expect().
+		Status(http.StatusUnprocessableEntity).
+		JSON().Object().Value("error").Object().Value("code").String().IsEqual("VALIDATION_ERROR")
+}
+
 func (s *E2ESuite) TestAsset_Create_ShortDescription() {
 	walletID := s.createWallet("Carteira ShortDesc")
 
