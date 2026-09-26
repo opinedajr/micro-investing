@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/opinedajr/micro-investing/internal/infrastructure/database"
+	"github.com/opinedajr/micro-investing/internal/quotation"
 	"github.com/opinedajr/micro-investing/internal/stock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,7 @@ import (
 func setupSQLiteRepository(t *testing.T) (*SQLiteRepository, context.Context) {
 	gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
 	require.NoError(t, err)
-	require.NoError(t, gormDB.AutoMigrate(&Position{}, &stock.Stock{}, &stock.CurrentPrice{}))
+	require.NoError(t, gormDB.AutoMigrate(&Position{}, &stock.Stock{}, &quotation.CurrentPrice{}))
 	return NewSQLiteRepository(gormDB), context.Background()
 }
 
