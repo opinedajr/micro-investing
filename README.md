@@ -88,9 +88,15 @@ DB_HOST=
 DB_PORT=
 DB_USER=
 DB_PASSWORD=
+BRAPI_API_KEY=
+BRAPI_BASE_URL=https://brapi.dev
+BRAPI_TIMEOUT=15s
+BRAPI_BATCH_SIZE=1
 ```
 
 Supported drivers: `postgres` | `mysql` | `sqlite`. When `DB_DRIVER=sqlite`, only `DB_NAME` is required and it is treated as the database file path (e.g. `DB_NAME=data/app.db`).
+
+Brapi variables configure the price sync integration (`internal/infrastructure/brapi`). `BRAPI_API_KEY` is only required by the quotation sync job — the API server starts without it; the client construction fails fast when the key is missing. Defaults: base URL `https://brapi.dev`, request timeout `15s`, batch size `1` (free plan allows 1 ticker per request).
 
 ### 3. Install Dependencies
 ```bash
