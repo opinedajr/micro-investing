@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -190,6 +191,55 @@ func TestLoad_Errors(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, cfg)
 		assert.Contains(t, err.Error(), "DB_NAME")
+	})
+}
+
+func TestLoad_BrapiConfig(t *testing.T) {
+	t.Run("success - applies brapi defaults when env vars not set", func(t *testing.T) {
+		t.Setenv("DB_DRIVER", "sqlite")
+		t.Setenv("DB_NAME", "testdb")
+		require.NoError(t, os.Unsetenv("BRAPI_API_KEY"))
+		require.NoError(t, os.Unsetenv("BRAPI_BASE_URL"))
+		require.NoError(t, os.Unsetenv("BRAPI_TIMEOUT"))
+		require.NoError(t, os.Unsetenv("BRAPI_BATCH_SIZE"))
+
+		cfg, err := Load()
+
+		assert.NoError(t, err)
+		assert.NotNil(t, cfg)
+		assert.Empty(t, cfg.Brapi.APIKey)
+		assert.Equal(t, "https://brapi.dev", cfg.Brapi.BaseURL)
+		assert.Equal(t, 15*time.Second, cfg.Brapi.Timeout)
+		assert.Equal(t, 1, cfg.Brapi.BatchSize)
+	})
+
+	t.Run("success - parses custom brapi values", func(t *testing.T) {
+		t.Setenv("DB_DRIVER", "sqlite")
+		t.Setenv("DB_NAME", "testdb")
+		t.Setenv("BRAPI_API_KEY", "brapi-key-123")
+		t.Setenv("BRAPI_BASE_URL", "https://custom.example.com")
+		t.Setenv("BRAPI_TIMEOUT", "30s")
+		t.Setenv("BRAPI_BATCH_SIZE", "5")
+
+		cfg, err := Load()
+
+		assert.NoError(t, err)
+		assert.NotNil(t, cfg)
+		assert.Equal(t, "brapi-key-123", cfg.Brapi.APIKey)
+		assert.Equal(t, "https://custom.example.com", cfg.Brapi.BaseURL)
+		assert.Equal(t, 30*time.Second, cfg.Brapi.Timeout)
+		assert.Equal(t, 5, cfg.Brapi.BatchSize)
+	})
+
+	t.Run("error - BRAPI_BATCH_SIZE with non-numeric value", func(t *testing.T) {
+		t.Setenv("DB_DRIVER", "sqlite")
+		t.Setenv("DB_NAME", "testdb")
+		t.Setenv("BRAPI_BATCH_SIZE", "abc")
+
+		cfg, err := Load()
+
+		assert.Error(t, err)
+		assert.Nil(t, cfg)
 	})
 }
 
