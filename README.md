@@ -225,7 +225,7 @@ For detailed request/response schemas see `docs/api.md`.
 |---------|-------------|
 | `make run` | Build and run the API locally |
 | `make run-dev` | Run with hot-reload (reflex) |
-| `make build` | Build optimized binary (`bin/stats-central-api`) |
+| `make build` | Build optimized binary (`bin/micro-investing`) |
 | `make test` | Run tests |
 | `make test-v` | Run tests with verbose output |
 | `make test-cover` | Generate coverage report |
@@ -241,5 +241,103 @@ For detailed request/response schemas see `docs/api.md`.
 | `make seed-stock` | Seed the B3 stocks catalog (idempotent) |
 | `make seed-stock ARGS="--force"` | Force-overwrite existing stocks catalog |
 | `make clean` | Remove binaries and coverage files |
+
+---
+
+## 🏭 Production Deployment (VPS)
+
+The application is deployed to a Linux VPS using a **systemd service** to manage the Go binary directly (no Docker). The database (PostgreSQL, MySQL or SQLite) must already be running/configured on the server — migrations are not handled by the scripts and are the operator's responsibility.
+
+### Architecture
+
+```
+Internet → <vps-ip>:<SERVER_PORT> → Go binary (systemd, SPA embedded)
+                                       ↓
+                            Database (managed by operator)
+```
+
+### Prerequisites on VPS
+- Linux (Ubuntu 22.04+ / Debian 12+) with systemd
+- Database already running and accessible (create the database and run migrations yourself)
+- sudo access
+
+### Deployment Scripts
+
+Two scripts in `scripts/` automate deployment:
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/install.sh` | First-time setup: creates `/opt/micro-investing` (+ `data/` dir for SQLite), installs hardened systemd unit, enables and starts service |
+| `scripts/update.sh`  | Deploy new versions: fixes binary permissions and restarts service |
+
+### Building the Binary
+
+`make build` compiles the Vue SPA first (requires Node.js 20.19+) and embeds it into the Go binary — a single artifact serves both API and dashboard:
+
+```bash
+make build   # produces bin/micro-investing
+```
+
+> **Important:** the SQLite driver (`gorm.io/driver/sqlite` → `mattn/go-sqlite3`) uses **CGO**, so the build must run natively on Linux. Cross-compiling from macOS/Windows will not work without a cross C toolchain.
+
+### First-time Install
+
+**1. Build locally (on Linux):**
+```bash
+make build
+```
+
+**2. Copy binary, scripts, and `.env` to the VPS:**
+```bash
+scp bin/micro-investing scripts/install.sh scripts/update.sh root@<vps>:/tmp/
+scp .env root@<vps>:/tmp/.env.production
+```
+
+**3. On the VPS — prepare files:**
+```bash
+sudo install -d -o www-data -g www-data -m 0755 /opt/micro-investing
+sudo install -m 0755 -o www-data -g www-data /tmp/micro-investing /opt/micro-investing/micro-investing
+sudo install -m 0600 -o www-data -g www-data /tmp/.env.production /opt/micro-investing/.env
+# Adjust values in /opt/micro-investing/.env for production:
+#   SERVER_PORT (external port; defaults to 3030 if unset)
+#   DB_DRIVER, DB_NAME (SQLite: file path relative to /opt/micro-investing, e.g. data/micro_investing.db)
+#   DB_HOST, DB_PORT, DB_USER, DB_PASSWORD (PostgreSQL/MySQL)
+```
+
+**4. Run the installer:**
+```bash
+sudo bash /tmp/install.sh
+```
+
+This creates the `micro-investing.service` systemd unit (with hardening), enables it, and starts the service. Open the port in the firewall if needed (`sudo ufw allow <SERVER_PORT>`).
+
+### Updating to a New Version
+
+**1. Build locally:**
+```bash
+make build
+```
+
+**2. Copy the new binary to the VPS:**
+```bash
+scp bin/micro-investing root@<vps>:/opt/micro-investing/micro-investing
+```
+
+**3. Run the update script on the VPS:**
+```bash
+sudo bash /tmp/update.sh
+```
+
+The update script fixes permissions and restarts the service — no need to touch systemd or `.env`.
+
+### Service Management
+
+```bash
+systemctl status micro-investing                      # Check status
+journalctl -u micro-investing -f                      # Tail logs
+systemctl restart micro-investing                     # Manual restart
+systemctl stop micro-investing                        # Stop
+sudo journalctl -u micro-investing -n 50 --no-pager   # Service Logs
+```
 
 ---

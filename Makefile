@@ -2,7 +2,7 @@ include .env
 
 .PHONY: help setup dev dev-up dev-down build test clean docker docker-down install-deps web-build web-dev web-test run
 
-BINARY_NAME=stats-central-api
+BINARY_NAME=micro-investing
 DOCKER_COMPOSE_FILE=docker-compose.yml
 DOCKER_COMPOSE_DEV_FILE=docker-compose.dev.yml
 
