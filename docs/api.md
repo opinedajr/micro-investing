@@ -307,6 +307,14 @@ Error response:
 - **Description**: Idempotently seeds ~29 B3 blue-chip stocks. Repeating the command does not duplicate rows or overwrite manual edits.
 - **Force overwrite**: `make seed-stock ARGS="--force"`
 
+### Sync Current Prices
+- **Command**: `make sync-prices` (binary: `go build ./cmd/quotation`)
+- **Description**: Fetches current prices for the registered stocks from the Brapi API and upserts them into the `stocks_current_prices` cache in a single transaction, then re-consolidates the positions of every wallet of the default user so balance/variation and the dashboard reflect the new prices immediately. A ticker absent from the API response is skipped and keeps its old price; a failed batch does not abort the remaining batches.
+- **Ticker filter**: `make sync-prices ARGS="-tickers=PETR4,VALE3"` (default: all registered stocks; unknown tickers fail fast with an error)
+- **Exit codes**: `0` on success or partial success (skipped/failed tickers summarized); `1` on total failure, including a missing `BRAPI_API_KEY` (validated at client construction, before any sync work).
+- **Scheduling**: designed for crontab, e.g. `0 18 * * 1-5 make -C /path/to/micro-investing sync-prices >> /var/log/quotation.log 2>&1`
+- **Configuration**: requires `BRAPI_API_KEY`; optional `BRAPI_BASE_URL` (default `https://brapi.dev`), `BRAPI_TIMEOUT` (default `15s`) and `BRAPI_BATCH_SIZE` (default `1`). See `.env.sample`.
+
 ---
 
 ## Positions
