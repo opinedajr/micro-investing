@@ -8,9 +8,11 @@ import (
 
 	"github.com/opinedajr/micro-investing/internal/dashboard"
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
+	"github.com/opinedajr/micro-investing/internal/infrastructure/brapi"
 	"github.com/opinedajr/micro-investing/internal/infrastructure/database"
 	"github.com/opinedajr/micro-investing/internal/patrimony"
 	"github.com/opinedajr/micro-investing/internal/position"
+	"github.com/opinedajr/micro-investing/internal/quotation"
 	"github.com/opinedajr/micro-investing/internal/shared/config"
 	sloglogger "github.com/opinedajr/micro-investing/internal/shared/logger"
 	"github.com/opinedajr/micro-investing/internal/stock"
@@ -18,13 +20,18 @@ import (
 )
 
 type Container struct {
-	config       *config.Config
-	logger       sloglogger.Logger
-	db           *gorm.DB
-	dbConn       database.DatabaseConnection
-	repositories *RepositoryDependencies
-	services     *ServiceDependencies
-	handlers     *HandlerDependencies
+	config         *config.Config
+	logger         sloglogger.Logger
+	db             *gorm.DB
+	dbConn         database.DatabaseConnection
+	infrastructure *InfrastructureDependencies
+	repositories   *RepositoryDependencies
+	services       *ServiceDependencies
+	handlers       *HandlerDependencies
+}
+
+type InfrastructureDependencies struct {
+	brapiProvider quotation.Provider
 }
 
 type RepositoryDependencies struct {
@@ -33,6 +40,7 @@ type RepositoryDependencies struct {
 	assetRepository     patrimony.AssetRepository
 	stockRepository     stock.Repository
 	positionRepository  position.Repository
+	quotationRepository quotation.Repository
 }
 
 type HandlerDependencies struct {
@@ -51,13 +59,15 @@ type ServiceDependencies struct {
 	stockService       stock.Service
 	positionService    position.Service
 	dashboardService   dashboard.Service
+	quotationService   quotation.Service
 }
 
 func NewContainer() *Container {
 	return &Container{
-		repositories: &RepositoryDependencies{},
-		services:     &ServiceDependencies{},
-		handlers:     &HandlerDependencies{},
+		infrastructure: &InfrastructureDependencies{},
+		repositories:   &RepositoryDependencies{},
+		services:       &ServiceDependencies{},
+		handlers:       &HandlerDependencies{},
 	}
 }
 
@@ -225,4 +235,29 @@ func (c *Container) DashboardHandler() *dashboard.Handler {
 		c.handlers.dashboardHandler = dashboard.NewHandler(c.DashboardService())
 	}
 	return c.handlers.dashboardHandler
+}
+
+func (c *Container) BrapiClient() quotation.Provider {
+	if c.infrastructure.brapiProvider == nil {
+		provider, err := brapi.NewClient(c.Config().Brapi)
+		if err != nil {
+			panic("failed to create brapi client: " + err.Error())
+		}
+		c.infrastructure.brapiProvider = provider
+	}
+	return c.infrastructure.brapiProvider
+}
+
+func (c *Container) QuotationRepository() quotation.Repository {
+	if c.repositories.quotationRepository == nil {
+		c.repositories.quotationRepository = quotation.NewSQLiteRepository(c.DB())
+	}
+	return c.repositories.quotationRepository
+}
+
+func (c *Container) QuotationService() quotation.Service {
+	if c.services.quotationService == nil {
+		c.services.quotationService = quotation.NewService(c.BrapiClient(), c.QuotationRepository(), c.StockRepository(), c.Config().Brapi.BatchSize, c.Logger())
+	}
+	return c.services.quotationService
 }
