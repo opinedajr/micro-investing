@@ -225,6 +225,12 @@ Commands:
 - **Description**: Idempotently seeds the B3 blue-chip catalog into the `stocks` table. Repeating the command does not duplicate or overwrite manual edits.
 - **Force overwrite**: `make seed-stock ARGS="--force"`
 
+### Quotation Sync
+- **Command**: `make sync-prices`
+- **Description**: Syncs current stock prices from the Brapi API into the `stocks_current_prices` cache and then re-consolidates the positions of every wallet of the default user, so balance, variation and the dashboard reflect the new prices immediately. Idempotent and safe to run repeatedly (e.g. via crontab).
+- **Ticker filter**: `make sync-prices ARGS="-tickers=PETR4,VALE3"` (default: all registered stocks; unknown tickers fail fast)
+- **Exit codes**: `0` on success or partial success (skipped/failed tickers are summarized in the logs); `1` on total failure, including a missing `BRAPI_API_KEY`.
+
 For detailed request/response schemas see `docs/api.md`.
 
 | Command | Description |
@@ -246,6 +252,8 @@ For detailed request/response schemas see `docs/api.md`.
 | `make migrate-create name=<name>` | Create new migration |
 | `make seed-stock` | Seed the B3 stocks catalog (idempotent) |
 | `make seed-stock ARGS="--force"` | Force-overwrite existing stocks catalog |
+| `make sync-prices` | Sync current prices from Brapi and re-consolidate wallet positions |
+| `make sync-prices ARGS="-tickers=PETR4,VALE3"` | Sync only the given tickers |
 | `make clean` | Remove binaries and coverage files |
 
 ---
