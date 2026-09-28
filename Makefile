@@ -1,6 +1,6 @@
 include .env
 
-.PHONY: help setup dev dev-up dev-down build test clean docker docker-down install-deps web-build web-dev web-test run
+.PHONY: help setup dev dev-up dev-down build test clean docker docker-down install-deps web-build web-dev web-test run sync-prices
 
 BINARY_NAME=stats-central-api
 DOCKER_COMPOSE_FILE=docker-compose.yml
@@ -125,3 +125,8 @@ seed-stock:
 	@echo "🌱 Executando seed de stocks..."
 	@go run cmd/seed/main.go $(ARGS)
 	@echo "✅ Seed de stocks concluído"
+
+sync-prices:
+	@echo "📈 Sincronizando preços atuais via Brapi..."
+	@go run ./cmd/quotation $(ARGS)
+	@echo "✅ Sincronização de preços concluída"
