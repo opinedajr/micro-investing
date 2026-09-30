@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 interface WalletResponse {
   data: {
@@ -44,6 +45,33 @@ async function createPosition(request: ReturnType<typeof test['request']['newCon
   })
   expect(response.ok(), `createPosition failed: ${await response.text()}`).toBeTruthy()
 }
+
+function canvasContainsColor(page: Page, containerTestId: string, rgb: readonly [number, number, number]) {
+  return page
+    .locator(`[data-testid="${containerTestId}"] canvas`)
+    .evaluate((canvas, color) => {
+      const canvasElement = canvas as HTMLCanvasElement
+      const context = canvasElement.getContext('2d')
+      if (!context) {
+        return false
+      }
+      const { data } = context.getImageData(0, 0, canvasElement.width, canvasElement.height)
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i] === color[0] && data[i + 1] === color[1] && data[i + 2] === color[2]) {
+          return true
+        }
+      }
+      return false
+    }, rgb)
+}
+
+const RISK_RANK_COLOR = {
+  red: [239, 68, 68],
+  orange: [249, 115, 22],
+  yellow: [250, 204, 21],
+  lightGreen: [132, 204, 22],
+  green: [34, 197, 94],
+} as const
 
 test.describe('Dashboard KPI Cards', () => {
   test.beforeEach(async ({ request }) => {
@@ -141,7 +169,7 @@ test.describe('Dashboard Composition Charts', () => {
 
     await expect(allocationCanvas).toBeVisible()
     await expect(riskCanvas).toBeVisible()
-    await expect(page.locator('[data-testid="risk-legend"]')).toBeVisible()
+    await expect(page.locator('[data-testid="risk-legend"]')).toHaveCount(0)
   })
 
   test('renders the dividends card between allocation and risk cards', async ({ page, request }) => {
@@ -159,7 +187,7 @@ test.describe('Dashboard Composition Charts', () => {
     ])
   })
 
-  test('shows the dynamic risk legend for an optimal score', async ({ page, request }) => {
+  test('draws one risk slice per dashboard/risk item with per rank colors', async ({ page, request }) => {
     await createWallet(request)
 
     await page.route('**/api/v1/wallets/*/dashboard/risk', async (route) => {
@@ -169,10 +197,11 @@ test.describe('Dashboard Composition Charts', () => {
         body: JSON.stringify({
           data: {
             items: [
-              { rank: 4, amount: 800000, percentage: 80 },
-              { rank: 5, amount: 200000, percentage: 20 },
+              { rank: 3, amount: 4620000, percentage: 62 },
+              { rank: 4, amount: 1940000, percentage: 26 },
+              { rank: 5, amount: 920000, percentage: 12 },
             ],
-            total: 1000000,
+            total: 7480000,
           },
         }),
       })
@@ -180,10 +209,20 @@ test.describe('Dashboard Composition Charts', () => {
 
     await page.goto('/')
 
-    await expect(page.locator('[data-testid="risk-legend"]')).toHaveText('Ótima')
+    await expect(page.locator('[data-testid="risk-chart"] canvas')).toBeVisible()
+
+    await expect.poll(() =>
+      canvasContainsColor(page, 'risk-chart', RISK_RANK_COLOR.yellow),
+    ).toBe(true)
+    await expect.poll(() =>
+      canvasContainsColor(page, 'risk-chart', RISK_RANK_COLOR.lightGreen),
+    ).toBe(true)
+    await expect.poll(() =>
+      canvasContainsColor(page, 'risk-chart', RISK_RANK_COLOR.green),
+    ).toBe(true)
   })
 
-  test('shows the dynamic risk legend for the worst score', async ({ page, request }) => {
+  test('draws the high risk slice in red for a rank 1 portfolio', async ({ page, request }) => {
     await createWallet(request)
 
     await page.route('**/api/v1/wallets/*/dashboard/risk', async (route) => {
@@ -201,15 +240,20 @@ test.describe('Dashboard Composition Charts', () => {
 
     await page.goto('/')
 
-    await expect(page.locator('[data-testid="risk-legend"]')).toHaveText('Alto Risco')
+    await expect(page.locator('[data-testid="risk-chart"] canvas')).toBeVisible()
+
+    await expect.poll(() =>
+      canvasContainsColor(page, 'risk-chart', RISK_RANK_COLOR.red),
+    ).toBe(true)
   })
 
-  test('shows an empty state legend when the wallet has no positions', async ({ page, request }) => {
+  test('renders an empty risk chart when the wallet has no positions', async ({ page, request }) => {
     await createWallet(request)
 
     await page.goto('/')
 
-    await expect(page.locator('[data-testid="risk-legend"]')).toHaveText('Sem pontuação')
+    await expect(page.locator('[data-testid="risk-chart"] canvas')).toBeVisible()
+    await expect(page.locator('[data-testid="risk-legend"]')).toHaveCount(0)
   })
 
   test('returns allocation and risk percentages as integers', async ({ request }) => {
