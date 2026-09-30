@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/opinedajr/micro-investing/internal/patrimony"
@@ -180,9 +181,9 @@ func (s *dashboardService) Allocation(ctx context.Context, walletID string) (*Al
 		if item.Amount <= 0 {
 			continue
 		}
-		percentage := 0.0
+		percentage := 0
 		if total > 0 {
-			percentage = float64(item.Amount) / float64(total) * 100
+			percentage = int(math.Round(float64(item.Amount) / float64(total) * 100))
 		}
 		items = append(items, AllocationItem{
 			Type:       string(item.Type),
@@ -234,9 +235,9 @@ func (s *dashboardService) Risk(ctx context.Context, walletID string) (*RiskOutp
 		if amount <= 0 {
 			continue
 		}
-		percentage := 0.0
+		percentage := 0
 		if total > 0 {
-			percentage = float64(amount) / float64(total) * 100
+			percentage = int(math.Round(float64(amount) / float64(total) * 100))
 		}
 		items = append(items, RiskItem{
 			Rank:       rank,

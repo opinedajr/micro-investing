@@ -174,9 +174,9 @@ func (s *E2ESuite) TestDashboard_Allocation_Success() {
 	var payload struct {
 		Data struct {
 			Items []struct {
-				Type       string  `json:"type"`
-				Amount     int64   `json:"amount"`
-				Percentage float64 `json:"percentage"`
+				Type       string `json:"type"`
+				Amount     int64  `json:"amount"`
+				Percentage int    `json:"percentage"`
 			} `json:"items"`
 			Total int64 `json:"total"`
 		} `json:"data"`
@@ -192,9 +192,15 @@ func (s *E2ESuite) TestDashboard_Allocation_Success() {
 		"emergency_reserve": 250000,
 		"liquid_cash":       250000,
 	}
+	expectedPercentages := map[string]int{
+		"stocks":            33,
+		"fixed_income":      33,
+		"emergency_reserve": 17,
+		"liquid_cash":       17,
+	}
 	for _, item := range payload.Data.Items {
 		s.Equal(expectedAmounts[item.Type], item.Amount, "unexpected amount for %s", item.Type)
-		s.InDelta(100.0*float64(item.Amount)/1500000.0, item.Percentage, 0.01)
+		s.Equal(expectedPercentages[item.Type], item.Percentage, "unexpected percentage for %s", item.Type)
 	}
 }
 
