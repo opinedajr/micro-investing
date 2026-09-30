@@ -28,8 +28,13 @@ const ALLOCATION_COLORS: Record<string, string> = {
 
 const FALLBACK_COLORS = ['#0ea5e9', '#22c55e', '#f59e0b', '#a855f7', '#64748b']
 
-const RISK_TRACK_COLOR = '#e5e7eb'
-const MAX_RISK_SCORE = 5
+const RISK_COLORS: Record<number, string> = {
+  1: '#ef4444',
+  2: '#f97316',
+  3: '#facc15',
+  4: '#84cc16',
+  5: '#22c55e',
+}
 
 const RISK_LEGENDS: Record<number, string> = {
   1: 'Alto Risco',
@@ -39,7 +44,6 @@ const RISK_LEGENDS: Record<number, string> = {
   5: 'Excelente',
 }
 
-const RISK_EMPTY_LEGEND = 'Sem pontuação'
 const PERCENTAGE_LABEL_COLOR = '#ffffff'
 
 interface TooltipContext {
@@ -121,20 +125,12 @@ function allocationColor(type: string, index: number): string {
   return ALLOCATION_COLORS[type] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length]
 }
 
-function riskScoreColor(score: number): string {
-  if (score <= 1.5) {
-    return '#22c55e'
-  }
-  if (score <= 2.5) {
-    return '#84cc16'
-  }
-  if (score <= 3.5) {
-    return '#facc15'
-  }
-  if (score <= 4.5) {
-    return '#f97316'
-  }
-  return '#ef4444'
+function riskLabel(rank: number): string {
+  return RISK_LEGENDS[rank] ?? `Risco ${rank}`
+}
+
+function riskColor(rank: number, index: number): string {
+  return RISK_COLORS[rank] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length]
 }
 
 function percentageLabel(percentage: number): string {
@@ -179,55 +175,39 @@ const allocationChartOptions = computed(() => ({
   },
 }))
 
-const riskScore = computed(() => {
-  const items = props.risk?.items ?? []
-  const totalPercentage = items.reduce((sum, item) => sum + item.percentage, 0)
-  if (totalPercentage <= 0) {
-    return 0
-  }
-  return items.reduce((sum, item) => sum + item.rank * item.percentage, 0) / totalPercentage
-})
-
-const riskLegend = computed(() => {
-  if (riskScore.value <= 0) {
-    return RISK_EMPTY_LEGEND
-  }
-  const key = Math.min(MAX_RISK_SCORE, Math.max(1, Math.round(riskScore.value)))
-  return RISK_LEGENDS[key] ?? RISK_EMPTY_LEGEND
-})
-
-const riskChartData = computed(() => {
-  const score = riskScore.value
-  return {
-    labels: ['Risco', 'Restante'],
-    datasets: [
-      {
-        data: [score, Math.max(0, MAX_RISK_SCORE - score)],
-        backgroundColor:
-          score > 0 ? [riskScoreColor(score), RISK_TRACK_COLOR] : [RISK_TRACK_COLOR, RISK_TRACK_COLOR],
-        borderWidth: 0,
-      },
-    ],
-  }
-})
+const riskChartData = computed(() => ({
+  labels: props.risk?.items.map((item) => riskLabel(item.rank)) ?? [],
+  datasets: [
+    {
+      data: props.risk?.items.map((item) => item.amount) ?? [],
+      backgroundColor: props.risk?.items.map((item, index) => riskColor(item.rank, index)) ?? [],
+      borderWidth: 2,
+    },
+  ],
+}))
 
 const riskPercentageLabels = computed(() =>
-  riskScore.value > 0 ? [percentageLabel((riskScore.value / MAX_RISK_SCORE) * 100)] : [],
+  props.risk?.items.map((item) => percentageLabel(item.percentage)) ?? [],
 )
 
 const riskChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: true,
-  cutout: '72%',
-  circumference: 180,
-  rotation: -90,
+  cutout: '65%',
   plugins: {
     percentageLabels: {
       labels: riskPercentageLabels.value,
       color: PERCENTAGE_LABEL_COLOR,
     },
     legend: {
-      display: false,
+      position: 'bottom',
+    },
+    tooltip: {
+      callbacks: {
+        label(context: TooltipContext) {
+          return `${context.label}: ${formatCurrencyBRL(context.parsed)}`
+        },
+      },
     },
   },
 }))
@@ -268,7 +248,6 @@ const riskChartOptions = computed(() => ({
           :plugins="chartPlugins"
         />
       </div>
-      <p class="composition__risk-legend" data-testid="risk-legend">{{ riskLegend }}</p>
     </article>
   </section>
 </template>
@@ -303,13 +282,6 @@ const riskChartOptions = computed(() => ({
 .composition__chart {
   position: relative;
   width: 100%;
-}
-
-.composition__risk-legend {
-  margin: 0;
-  font-size: 0.875rem;
-  text-align: center;
-  color: var(--p-text-muted-color, #64748b);
 }
 
 .composition__card--reserved {
