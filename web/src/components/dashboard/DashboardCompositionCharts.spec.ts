@@ -15,10 +15,11 @@ const allocation: DashboardAllocation = {
 
 const risk: DashboardRisk = {
   items: [
-    { rank: 1, amount: 250000, percentage: 25 },
-    { rank: 5, amount: 750000, percentage: 75 },
+    { rank: 3, amount: 4620000, percentage: 62 },
+    { rank: 4, amount: 1940000, percentage: 26 },
+    { rank: 5, amount: 920000, percentage: 12 },
   ],
-  total: 1000000,
+  total: 7480000,
 }
 
 function stubChartData(wrapper: ReturnType<typeof mount>, containerTestId: string) {
@@ -57,7 +58,7 @@ describe('DashboardCompositionCharts', () => {
     expect(chart.plugins).toEqual([{ id: 'percentageLabels' }])
   })
 
-  it('renders the risk gauge as a half circle driven by the weighted risk score', () => {
+  it('renders one risk slice per dashboard/risk item', () => {
     const wrapper = mount(DashboardCompositionCharts, {
       props: { allocation, risk },
     })
@@ -66,34 +67,69 @@ describe('DashboardCompositionCharts', () => {
 
     expect(chart.exists).toBe(true)
     expect(chart.type).toBe('doughnut')
-    expect(chart.options.circumference).toBe(180)
-    expect(chart.options.rotation).toBe(-90)
-    expect(chart.data.datasets[0].data[0]).toBeCloseTo(4, 5)
-    expect(chart.data.datasets[0].data[1]).toBeCloseTo(1, 5)
+    expect(chart.data.labels).toEqual(['Boa', 'Ótima', 'Excelente'])
+    expect(chart.data.datasets[0].data).toEqual([4620000, 1940000, 920000])
   })
 
-  it('draws the score percentage label inside the risk gauge', () => {
+  it('draws percentage labels inside each risk slice', () => {
     const wrapper = mount(DashboardCompositionCharts, {
       props: { allocation, risk },
     })
 
     const chart = stubChartData(wrapper, 'risk-chart')
 
-    expect(chart.options.plugins.percentageLabels.labels).toEqual(['80%'])
+    expect(chart.options.plugins.percentageLabels.labels).toEqual(['62%', '26%', '12%'])
     expect(chart.plugins).toEqual([{ id: 'percentageLabels' }])
   })
 
-  it('renders an empty risk gauge when risk data is not loaded', () => {
+  it('applies semantic colors per risk rank', () => {
+    const wrapper = mount(DashboardCompositionCharts, {
+      props: { allocation, risk },
+    })
+
+    const chart = stubChartData(wrapper, 'risk-chart')
+
+    expect(chart.data.datasets[0].backgroundColor).toEqual(['#facc15', '#84cc16', '#22c55e'])
+  })
+
+  it('renders the risk chart with the same visual pattern as the allocation chart', () => {
+    const wrapper = mount(DashboardCompositionCharts, {
+      props: { allocation, risk },
+    })
+
+    const chart = stubChartData(wrapper, 'risk-chart')
+
+    expect(chart.options.cutout).toBe('65%')
+    expect(chart.options.circumference).toBeUndefined()
+    expect(chart.options.rotation).toBeUndefined()
+    expect(chart.options.plugins.legend).toEqual({ position: 'bottom' })
+  })
+
+  it('renders an empty risk chart when risk data is not loaded', () => {
     const wrapper = mount(DashboardCompositionCharts, {
       props: { allocation, risk: null },
     })
 
     const chart = stubChartData(wrapper, 'risk-chart')
-    const legend = wrapper.find('[data-testid="risk-legend"]')
 
-    expect(chart.data.datasets[0].data).toEqual([0, 5])
+    expect(chart.data.labels).toEqual([])
+    expect(chart.data.datasets[0].data).toEqual([])
+    expect(chart.data.datasets[0].backgroundColor).toEqual([])
     expect(chart.options.plugins.percentageLabels.labels).toEqual([])
-    expect(legend.text()).toBe('Sem pontuação')
+    expect(wrapper.find('[data-testid="risk-legend"]').exists()).toBe(false)
+  })
+
+  it('renders an empty risk chart when the wallet has no risk items', () => {
+    const wrapper = mount(DashboardCompositionCharts, {
+      props: { allocation, risk: { items: [], total: 0 } },
+    })
+
+    const chart = stubChartData(wrapper, 'risk-chart')
+
+    expect(chart.data.labels).toEqual([])
+    expect(chart.data.datasets[0].data).toEqual([])
+    expect(chart.data.datasets[0].backgroundColor).toEqual([])
+    expect(chart.options.plugins.percentageLabels.labels).toEqual([])
   })
 
   it('renders empty allocation datasets when allocation data is not loaded', () => {
@@ -143,33 +179,37 @@ describe('DashboardCompositionCharts', () => {
   })
 
   it.each([
-    { items: [{ rank: 1, amount: 1000000, percentage: 100 }], expected: 'Alto Risco' },
-    { items: [{ rank: 2, amount: 1000000, percentage: 100 }], expected: 'Risco' },
-    { items: [{ rank: 3, amount: 1000000, percentage: 100 }], expected: 'Boa' },
-    { items: [{ rank: 4, amount: 1000000, percentage: 100 }], expected: 'Ótima' },
-    { items: [{ rank: 5, amount: 1000000, percentage: 100 }], expected: 'Excelente' },
-    {
-      items: [
-        { rank: 4, amount: 750000, percentage: 75 },
-        { rank: 5, amount: 250000, percentage: 25 },
-      ],
-      expected: 'Ótima',
-    },
-  ])(
-    'maps the weighted risk score $items.0.rank to the dynamic legend $expected',
-    ({ items, expected }) => {
-      const wrapper = mount(DashboardCompositionCharts, {
-        props: {
-          allocation,
-          risk: { items, total: 1000000 },
-        },
-      })
+    { rank: 1, expected: ['Alto Risco'] },
+    { rank: 2, expected: ['Risco'] },
+    { rank: 3, expected: ['Boa'] },
+    { rank: 4, expected: ['Ótima'] },
+    { rank: 5, expected: ['Excelente'] },
+  ])('maps rank $rank to the risk chart label $expected', ({ rank, expected }) => {
+    const wrapper = mount(DashboardCompositionCharts, {
+      props: {
+        allocation,
+        risk: { items: [{ rank, amount: 1000000, percentage: 100 }], total: 1000000 },
+      },
+    })
 
-      const legend = wrapper.find('[data-testid="risk-legend"]')
+    const chart = stubChartData(wrapper, 'risk-chart')
 
-      expect(legend.text()).toBe(expected)
-    },
-  )
+    expect(chart.data.labels).toEqual(expected)
+  })
+
+  it('maps unknown risk ranks to a fallback label and fallback color', () => {
+    const wrapper = mount(DashboardCompositionCharts, {
+      props: {
+        allocation,
+        risk: { items: [{ rank: 9, amount: 500000, percentage: 50 }], total: 500000 },
+      },
+    })
+
+    const chart = stubChartData(wrapper, 'risk-chart')
+
+    expect(chart.data.labels).toEqual(['Risco 9'])
+    expect(chart.data.datasets[0].backgroundColor).toEqual(['#0ea5e9'])
+  })
 
   it('standardizes both charts to the same responsive size', () => {
     const wrapper = mount(DashboardCompositionCharts, {
