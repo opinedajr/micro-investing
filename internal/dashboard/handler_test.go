@@ -349,10 +349,10 @@ func TestHandler_Allocation(t *testing.T) {
 			allocationFunc: func(ctx context.Context, walletID string) (*AllocationOutput, error) {
 				return &AllocationOutput{
 					Items: []AllocationItem{
-						{Type: "stocks", Amount: 500000, Percentage: 33.33},
-						{Type: "fixed_income", Amount: 500000, Percentage: 33.33},
-						{Type: "emergency_reserve", Amount: 250000, Percentage: 16.67},
-						{Type: "liquid_cash", Amount: 250000, Percentage: 16.67},
+						{Type: "stocks", Amount: 500000, Percentage: 33},
+						{Type: "fixed_income", Amount: 500000, Percentage: 33},
+						{Type: "emergency_reserve", Amount: 250000, Percentage: 17},
+						{Type: "liquid_cash", Amount: 250000, Percentage: 17},
 					},
 					Total: 1500000,
 				}, nil
@@ -376,7 +376,7 @@ func TestHandler_Allocation(t *testing.T) {
 		assert.Equal(t, int64(1500000), response.Data.Total)
 		assert.Equal(t, "stocks", response.Data.Items[0].Type)
 		assert.Equal(t, int64(500000), response.Data.Items[0].Amount)
-		assert.InDelta(t, 33.33, response.Data.Items[0].Percentage, 0.01)
+		assert.Equal(t, 33, response.Data.Items[0].Percentage)
 	})
 
 	t.Run("error - returns internal server error when service fails", func(t *testing.T) {
@@ -411,8 +411,8 @@ func TestHandler_Risk(t *testing.T) {
 			riskFunc: func(ctx context.Context, walletID string) (*RiskOutput, error) {
 				return &RiskOutput{
 					Items: []RiskItem{
-						{Rank: 3, Amount: 300000, Percentage: 60.0},
-						{Rank: 4, Amount: 200000, Percentage: 40.0},
+						{Rank: 3, Amount: 300000, Percentage: 60},
+						{Rank: 4, Amount: 200000, Percentage: 40},
 					},
 					Total: 500000,
 				}, nil
@@ -436,7 +436,7 @@ func TestHandler_Risk(t *testing.T) {
 		assert.Equal(t, int64(500000), response.Data.Total)
 		assert.Equal(t, int8(3), response.Data.Items[0].Rank)
 		assert.Equal(t, int64(300000), response.Data.Items[0].Amount)
-		assert.InDelta(t, 60.0, response.Data.Items[0].Percentage, 0.01)
+		assert.Equal(t, 60, response.Data.Items[0].Percentage)
 	})
 
 	t.Run("error - returns internal server error when service fails", func(t *testing.T) {

@@ -117,3 +117,132 @@ test.describe('Dashboard KPI Cards', () => {
     await expect(page.locator('.kpi-card--patrimony')).toContainText('R$ 0,00')
   })
 })
+
+test.describe('Dashboard Composition Charts', () => {
+  test.beforeEach(async ({ request }) => {
+    const walletsResponse = await request.get('/api/v1/wallets')
+    const wallets = (await walletsResponse.json() as { data: Array<{ id: string }> }).data
+    for (const wallet of wallets) {
+      await request.delete(`/api/v1/wallets/${wallet.id}`)
+    }
+  })
+
+  test('renders composition charts with percentage labels', async ({ page, request }) => {
+    const walletId = await createWallet(request)
+    await createPatrimony(request, walletId, 'stocks', 500000)
+    await createPatrimony(request, walletId, 'fixed_income', 300000)
+    await createPatrimony(request, walletId, 'emergency_reserve', 200000)
+    await createPosition(request, walletId, 'PETR4')
+
+    await page.goto('/')
+
+    const allocationCanvas = page.locator('[data-testid="allocation-chart"] canvas')
+    const riskCanvas = page.locator('[data-testid="risk-chart"] canvas')
+
+    await expect(allocationCanvas).toBeVisible()
+    await expect(riskCanvas).toBeVisible()
+    await expect(page.locator('[data-testid="risk-legend"]')).toBeVisible()
+  })
+
+  test('renders the dividends card between allocation and risk cards', async ({ page, request }) => {
+    const walletId = await createWallet(request)
+    await createPatrimony(request, walletId, 'stocks', 500000)
+    await createPosition(request, walletId, 'PETR4')
+
+    await page.goto('/')
+
+    const titles = page.locator('.composition__card .composition__title')
+    await expect(titles).toHaveText([
+      'Alocação de Patrimônio',
+      'Dividendos',
+      'Gerenciamento de Risco',
+    ])
+  })
+
+  test('shows the dynamic risk legend for an optimal score', async ({ page, request }) => {
+    await createWallet(request)
+
+    await page.route('**/api/v1/wallets/*/dashboard/risk', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: {
+            items: [
+              { rank: 4, amount: 800000, percentage: 80 },
+              { rank: 5, amount: 200000, percentage: 20 },
+            ],
+            total: 1000000,
+          },
+        }),
+      })
+    })
+
+    await page.goto('/')
+
+    await expect(page.locator('[data-testid="risk-legend"]')).toHaveText('Ótima')
+  })
+
+  test('shows the dynamic risk legend for the worst score', async ({ page, request }) => {
+    await createWallet(request)
+
+    await page.route('**/api/v1/wallets/*/dashboard/risk', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: {
+            items: [{ rank: 1, amount: 1000000, percentage: 100 }],
+            total: 1000000,
+          },
+        }),
+      })
+    })
+
+    await page.goto('/')
+
+    await expect(page.locator('[data-testid="risk-legend"]')).toHaveText('Alto Risco')
+  })
+
+  test('shows an empty state legend when the wallet has no positions', async ({ page, request }) => {
+    await createWallet(request)
+
+    await page.goto('/')
+
+    await expect(page.locator('[data-testid="risk-legend"]')).toHaveText('Sem pontuação')
+  })
+
+  test('returns allocation and risk percentages as integers', async ({ request }) => {
+    const walletId = await createWallet(request)
+    await createPatrimony(request, walletId, 'stocks', 200000)
+    await createPatrimony(request, walletId, 'fixed_income', 150000)
+    await createPatrimony(request, walletId, 'emergency_reserve', 50000)
+    await createPosition(request, walletId, 'PETR4')
+
+    const allocationResponse = await request.get(`/api/v1/wallets/${walletId}/dashboard/allocation`)
+    expect(allocationResponse.ok()).toBeTruthy()
+    const allocationBody = (await allocationResponse.json()) as {
+      data: { items: Array<{ type: string; percentage: number }> }
+    }
+    const percentageByType = Object.fromEntries(
+      allocationBody.data.items.map((item) => [item.type, item.percentage]),
+    )
+    expect(Number.isInteger(percentageByType.stocks)).toBe(true)
+    expect(Number.isInteger(percentageByType.fixed_income)).toBe(true)
+    expect(Number.isInteger(percentageByType.emergency_reserve)).toBe(true)
+    expect(percentageByType).toEqual({
+      stocks: 50,
+      fixed_income: 38,
+      emergency_reserve: 13,
+    })
+
+    const riskResponse = await request.get(`/api/v1/wallets/${walletId}/dashboard/risk`)
+    expect(riskResponse.ok()).toBeTruthy()
+    const riskBody = (await riskResponse.json()) as {
+      data: { items: Array<{ rank: number; percentage: number }> }
+    }
+    expect(riskBody.data.items).toHaveLength(1)
+    expect(riskBody.data.items[0].rank).toBe(10)
+    expect(riskBody.data.items[0].percentage).toBe(100)
+  })
+})

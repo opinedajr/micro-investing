@@ -260,14 +260,44 @@ func TestService_Allocation(t *testing.T) {
 		assert.Equal(t, int64(1500000), output.Total)
 		assert.Len(t, output.Items, 4)
 
-		expectedPercentages := map[string]float64{
-			"stocks":            33.33,
-			"fixed_income":      33.33,
-			"emergency_reserve": 16.67,
-			"liquid_cash":       16.67,
+		expectedPercentages := map[string]int{
+			"stocks":            33,
+			"fixed_income":      33,
+			"emergency_reserve": 17,
+			"liquid_cash":       17,
 		}
 		for _, item := range output.Items {
-			assert.InDelta(t, expectedPercentages[item.Type], item.Percentage, 0.01)
+			assert.Equal(t, expectedPercentages[item.Type], item.Percentage)
+		}
+	})
+
+	t.Run("success - rounds percentages to integer rounding halves away from zero", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			findLatestMonthByWalletFunc: func(ctx context.Context, walletID string) (int, int, error) {
+				return 2026, 3, nil
+			},
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				return []patrimony.TypeAmount{
+					{Type: patrimony.TypeStocks, Amount: 200000},
+					{Type: patrimony.TypeFixedIncome, Amount: 150000},
+					{Type: patrimony.TypeEmergencyReserve, Amount: 50000},
+				}, nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		output, err := service.Allocation(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(400000), output.Total)
+
+		expectedPercentages := map[string]int{
+			"stocks":            50,
+			"fixed_income":      38,
+			"emergency_reserve": 13,
+		}
+		for _, item := range output.Items {
+			assert.Equal(t, expectedPercentages[item.Type], item.Percentage)
 		}
 	})
 
@@ -293,7 +323,7 @@ func TestService_Allocation(t *testing.T) {
 		assert.Len(t, output.Items, 1)
 		assert.Equal(t, "stocks", output.Items[0].Type)
 		assert.Equal(t, int64(100000), output.Items[0].Amount)
-		assert.InDelta(t, 100.0, output.Items[0].Percentage, 0.01)
+		assert.Equal(t, 100, output.Items[0].Percentage)
 	})
 
 	t.Run("success - returns empty when wallet has no patrimony records", func(t *testing.T) {
@@ -367,12 +397,48 @@ func TestService_Risk(t *testing.T) {
 		assert.Equal(t, int64(500000), output.Total)
 		assert.Len(t, output.Items, 2)
 
-		expected := map[int8]float64{
-			3: 60.0,
-			4: 40.0,
+		expected := map[int8]int{
+			3: 60,
+			4: 40,
 		}
 		for _, item := range output.Items {
-			assert.InDelta(t, expected[item.Rank], item.Percentage, 0.01)
+			assert.Equal(t, expected[item.Rank], item.Percentage)
+		}
+	})
+
+	t.Run("success - rounds percentages to integer rounding halves away from zero", func(t *testing.T) {
+		positionRepo := &mockPositionRepository{
+			findByFilterFunc: func(ctx context.Context, filter position.PositionFilter) ([]position.Position, error) {
+				return []position.Position{
+					{StockID: "stock-1", Invested: 200000},
+					{StockID: "stock-2", Invested: 150000},
+					{StockID: "stock-3", Invested: 50000},
+				}, nil
+			},
+		}
+		stockRepo := &mockStockRepository{
+			findByIDsFunc: func(ctx context.Context, ids []string) ([]stock.Stock, error) {
+				return []stock.Stock{
+					{ID: "stock-1", Rank: 5},
+					{ID: "stock-2", Rank: 4},
+					{ID: "stock-3", Rank: 3},
+				}, nil
+			},
+		}
+
+		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo)
+		output, err := service.Risk(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(400000), output.Total)
+
+		expected := map[int8]int{
+			5: 50,
+			4: 38,
+			3: 13,
+		}
+		for _, item := range output.Items {
+			assert.Equal(t, expected[item.Rank], item.Percentage)
 		}
 	})
 

@@ -7,9 +7,9 @@ type SummaryOutput struct {
 }
 
 type AllocationItem struct {
-	Type       string  `json:"type"`
-	Amount     int64   `json:"amount"`
-	Percentage float64 `json:"percentage"`
+	Type       string `json:"type"`
+	Amount     int64  `json:"amount"`
+	Percentage int    `json:"percentage"`
 }
 
 type AllocationOutput struct {
@@ -18,9 +18,9 @@ type AllocationOutput struct {
 }
 
 type RiskItem struct {
-	Rank       int8    `json:"rank"`
-	Amount     int64   `json:"amount"`
-	Percentage float64 `json:"percentage"`
+	Rank       int8   `json:"rank"`
+	Amount     int64  `json:"amount"`
+	Percentage int    `json:"percentage"`
 }
 
 type RiskOutput struct {

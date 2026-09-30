@@ -31,10 +31,87 @@ const FALLBACK_COLORS = ['#0ea5e9', '#22c55e', '#f59e0b', '#a855f7', '#64748b']
 const RISK_TRACK_COLOR = '#e5e7eb'
 const MAX_RISK_SCORE = 5
 
+const RISK_LEGENDS: Record<number, string> = {
+  1: 'Alto Risco',
+  2: 'Risco',
+  3: 'Boa',
+  4: 'Ótima',
+  5: 'Excelente',
+}
+
+const RISK_EMPTY_LEGEND = 'Sem pontuação'
+const PERCENTAGE_LABEL_COLOR = '#ffffff'
+
 interface TooltipContext {
   label: string
   parsed: number
 }
+
+interface PercentageLabelsConfig {
+  labels: string[]
+  color: string
+}
+
+interface ArcGeometry {
+  x: number
+  y: number
+  innerRadius: number
+  outerRadius: number
+  startAngle: number
+  endAngle: number
+}
+
+interface ArcElement {
+  getProps(keys: string[], final: boolean): ArcGeometry
+}
+
+interface ChartCanvas {
+  ctx: CanvasRenderingContext2D
+  options: {
+    plugins?: {
+      percentageLabels?: PercentageLabelsConfig
+    }
+  }
+  getDatasetMeta(datasetIndex: number): {
+    data: ArcElement[]
+  }
+}
+
+const percentageLabelsPlugin = {
+  id: 'percentageLabels',
+  afterDatasetsDraw(chart: ChartCanvas) {
+    const config = chart.options.plugins?.percentageLabels
+    if (!config || config.labels.length === 0) {
+      return
+    }
+    const { ctx } = chart
+    ctx.save()
+    ctx.font = '600 12px Inter, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = config.color
+    chart.getDatasetMeta(0).data.forEach((arc, index) => {
+      const label = config.labels[index]
+      if (!label) {
+        return
+      }
+      const geometry = arc.getProps(
+        ['x', 'y', 'innerRadius', 'outerRadius', 'startAngle', 'endAngle'],
+        true,
+      )
+      const midAngle = (geometry.startAngle + geometry.endAngle) / 2
+      const radius = (geometry.innerRadius + geometry.outerRadius) / 2
+      ctx.fillText(
+        label,
+        geometry.x + Math.cos(midAngle) * radius,
+        geometry.y + Math.sin(midAngle) * radius,
+      )
+    })
+    ctx.restore()
+  },
+}
+
+const chartPlugins = [percentageLabelsPlugin]
 
 function allocationLabel(type: string): string {
   return ALLOCATION_LABELS[type] ?? type
@@ -60,6 +137,10 @@ function riskScoreColor(score: number): string {
   return '#ef4444'
 }
 
+function percentageLabel(percentage: number): string {
+  return `${Math.round(percentage)}%`
+}
+
 const allocationChartData = computed(() => ({
   labels: props.allocation?.items.map((item) => allocationLabel(item.type)) ?? [],
   datasets: [
@@ -72,11 +153,19 @@ const allocationChartData = computed(() => ({
   ],
 }))
 
-const allocationChartOptions = {
+const allocationPercentageLabels = computed(() =>
+  props.allocation?.items.map((item) => percentageLabel(item.percentage)) ?? [],
+)
+
+const allocationChartOptions = computed(() => ({
   responsive: true,
-  maintainAspectRatio: false,
+  maintainAspectRatio: true,
   cutout: '65%',
   plugins: {
+    percentageLabels: {
+      labels: allocationPercentageLabels.value,
+      color: PERCENTAGE_LABEL_COLOR,
+    },
     legend: {
       position: 'bottom',
     },
@@ -88,7 +177,7 @@ const allocationChartOptions = {
       },
     },
   },
-}
+}))
 
 const riskScore = computed(() => {
   const items = props.risk?.items ?? []
@@ -97,6 +186,14 @@ const riskScore = computed(() => {
     return 0
   }
   return items.reduce((sum, item) => sum + item.rank * item.percentage, 0) / totalPercentage
+})
+
+const riskLegend = computed(() => {
+  if (riskScore.value <= 0) {
+    return RISK_EMPTY_LEGEND
+  }
+  const key = Math.min(MAX_RISK_SCORE, Math.max(1, Math.round(riskScore.value)))
+  return RISK_LEGENDS[key] ?? RISK_EMPTY_LEGEND
 })
 
 const riskChartData = computed(() => {
@@ -114,43 +211,40 @@ const riskChartData = computed(() => {
   }
 })
 
-const riskChartOptions = {
+const riskPercentageLabels = computed(() =>
+  riskScore.value > 0 ? [percentageLabel((riskScore.value / MAX_RISK_SCORE) * 100)] : [],
+)
+
+const riskChartOptions = computed(() => ({
   responsive: true,
-  maintainAspectRatio: false,
+  maintainAspectRatio: true,
   cutout: '72%',
   circumference: 180,
   rotation: -90,
   plugins: {
+    percentageLabels: {
+      labels: riskPercentageLabels.value,
+      color: PERCENTAGE_LABEL_COLOR,
+    },
     legend: {
       display: false,
     },
   },
-}
-
-const riskScoreLabel = computed(() =>
-  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(
-    riskScore.value,
-  ),
-)
+}))
 </script>
 
 <template>
   <section class="composition" data-testid="dashboard-composition-charts">
     <article class="composition__card" data-testid="allocation-chart">
       <h2 class="composition__title">Alocação de Patrimônio</h2>
-      <div class="composition__chart composition__chart--allocation">
-        <Chart type="doughnut" :data="allocationChartData" :options="allocationChartOptions" />
+      <div class="composition__chart">
+        <Chart
+          type="doughnut"
+          :data="allocationChartData"
+          :options="allocationChartOptions"
+          :plugins="chartPlugins"
+        />
       </div>
-    </article>
-
-    <article class="composition__card" data-testid="risk-chart">
-      <h2 class="composition__title">Gerenciamento de Risco</h2>
-      <div class="composition__chart composition__chart--risk">
-        <Chart type="doughnut" :data="riskChartData" :options="riskChartOptions" />
-      </div>
-      <p class="composition__risk-score">
-        Perfil de risco: <strong>{{ riskScoreLabel }} / 5</strong>
-      </p>
     </article>
 
     <article class="composition__card composition__card--reserved" data-testid="dividends-placeholder">
@@ -162,6 +256,19 @@ const riskScoreLabel = computed(() =>
           O gerenciamento de dividendos ainda não está disponível.
         </span>
       </div>
+    </article>
+
+    <article class="composition__card" data-testid="risk-chart">
+      <h2 class="composition__title">Gerenciamento de Risco</h2>
+      <div class="composition__chart">
+        <Chart
+          type="doughnut"
+          :data="riskChartData"
+          :options="riskChartOptions"
+          :plugins="chartPlugins"
+        />
+      </div>
+      <p class="composition__risk-legend" data-testid="risk-legend">{{ riskLegend }}</p>
     </article>
   </section>
 </template>
@@ -198,23 +305,11 @@ const riskScoreLabel = computed(() =>
   width: 100%;
 }
 
-.composition__chart--allocation {
-  height: 260px;
-}
-
-.composition__chart--risk {
-  height: 160px;
-}
-
-.composition__risk-score {
+.composition__risk-legend {
   margin: 0;
   font-size: 0.875rem;
   text-align: center;
   color: var(--p-text-muted-color, #64748b);
-}
-
-.composition__risk-score strong {
-  color: var(--p-text-color, #0f172a);
 }
 
 .composition__card--reserved {
