@@ -29,11 +29,11 @@ const ALLOCATION_COLORS: Record<string, string> = {
 const FALLBACK_COLORS = ['#0ea5e9', '#22c55e', '#f59e0b', '#a855f7', '#64748b']
 
 const RISK_COLORS: Record<number, string> = {
-  1: '#ef4444',
-  2: '#f97316',
-  3: '#facc15',
-  4: '#84cc16',
-  5: '#22c55e',
+  1: '#dc2626',
+  2: '#f59e0b',
+  3: '#eab308',
+  4: '#0891b2',
+  5: '#16a34a',
 }
 
 const RISK_LEGENDS: Record<number, string> = {

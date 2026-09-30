@@ -89,7 +89,7 @@ describe('DashboardCompositionCharts', () => {
 
     const chart = stubChartData(wrapper, 'risk-chart')
 
-    expect(chart.data.datasets[0].backgroundColor).toEqual(['#facc15', '#84cc16', '#22c55e'])
+    expect(chart.data.datasets[0].backgroundColor).toEqual(['#eab308', '#0891b2', '#16a34a'])
   })
 
   it('renders the risk chart with the same visual pattern as the allocation chart', () => {
