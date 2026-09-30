@@ -495,10 +495,10 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 {
   "data": {
     "items": [
-      { "type": "stocks", "amount": 500000, "percentage": 33.33 },
-      { "type": "fixed_income", "amount": 500000, "percentage": 33.33 },
-      { "type": "emergency_reserve", "amount": 250000, "percentage": 16.67 },
-      { "type": "liquid_cash", "amount": 250000, "percentage": 16.67 }
+      { "type": "stocks", "amount": 500000, "percentage": 33 },
+      { "type": "fixed_income", "amount": 500000, "percentage": 33 },
+      { "type": "emergency_reserve", "amount": 250000, "percentage": 17 },
+      { "type": "liquid_cash", "amount": 250000, "percentage": 17 }
     ],
     "total": 1500000
   }
@@ -507,7 +507,7 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 
 - Uses only Patrimony from the latest month with data, grouped by `AssetType`
 - Returns the 5 categories without aggregation; categories with no balance are omitted
-- `percentage = (amount / total) × 100`
+- `percentage = round((amount / total) × 100)` as an integer (mathematical rounding, halves away from zero)
 - `total`: sum of the amounts of the returned items
 
 - **Errors**:
@@ -523,8 +523,8 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 {
   "data": {
     "items": [
-      { "rank": 3, "amount": 300000, "percentage": 60.0 },
-      { "rank": 4, "amount": 200000, "percentage": 40.0 }
+      { "rank": 3, "amount": 300000, "percentage": 60 },
+      { "rank": 4, "amount": 200000, "percentage": 40 }
     ],
     "total": 500000
   }
@@ -533,7 +533,7 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 
 - Uses `Position.Invested` grouped by `Stock.Rank` (1-5)
 - The service fetches all positions for the wallet, resolves the rank of each stock via batch lookup, and aggregates in memory
-- `percentage = (invested per rank / total invested) × 100`
+- `percentage = round((invested per rank / total invested) × 100)` as an integer (mathematical rounding, halves away from zero)
 - Ranks with no invested amount are omitted
 - `total`: sum of `Position.Invested` for the wallet
 
