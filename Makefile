@@ -61,6 +61,11 @@ build: web-build ## Compila a aplicação (inclui o frontend)
 	@go build -ldflags='-s -w' -o bin/$(BINARY_NAME) cmd/api/main.go
 	@echo "✅ Binário criado: bin/$(BINARY_NAME)"
 
+build-sync: ## Compila o atualizador de cotações para execução em background/cron
+	@echo "🔨 Compilando o atualizador de cotações..."
+	@go build -ldflags='-s -w' -o bin/sync-prices cmd/quotation/main.go
+	@echo "✅ Binário criado: bin/sync-prices"
+
 # Executar aplicação compilada
 run: build ## Executa a aplicação compilada
 	@echo "🚀 Executando aplicação..."
