@@ -66,11 +66,11 @@ function canvasContainsColor(page: Page, containerTestId: string, rgb: readonly 
 }
 
 const RISK_RANK_COLOR = {
-  red: [239, 68, 68],
-  orange: [249, 115, 22],
-  yellow: [250, 204, 21],
-  lightGreen: [132, 204, 22],
-  green: [34, 197, 94],
+  red: [220, 38, 38],
+  amber: [245, 158, 11],
+  yellow: [234, 179, 8],
+  cyan: [8, 145, 178],
+  green: [22, 163, 74],
 } as const
 
 test.describe('Dashboard KPI Cards', () => {
@@ -215,7 +215,7 @@ test.describe('Dashboard Composition Charts', () => {
       canvasContainsColor(page, 'risk-chart', RISK_RANK_COLOR.yellow),
     ).toBe(true)
     await expect.poll(() =>
-      canvasContainsColor(page, 'risk-chart', RISK_RANK_COLOR.lightGreen),
+      canvasContainsColor(page, 'risk-chart', RISK_RANK_COLOR.cyan),
     ).toBe(true)
     await expect.poll(() =>
       canvasContainsColor(page, 'risk-chart', RISK_RANK_COLOR.green),
