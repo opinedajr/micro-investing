@@ -326,8 +326,6 @@ const riskChartOptions = computed(() => ({
 .composition__risk-container .composition__chart {
   flex: 1;
   min-width: 0;
-  aspect-ratio: 2 / 1;
-  overflow: hidden;
 }
 
 .composition__risk-legend {

@@ -234,7 +234,7 @@ test.describe('Dashboard Composition Charts', () => {
     ])
   })
 
-  test('keeps the three composition cards equally sized without dead space under the gauge', async ({ page, request }) => {
+  test('keeps the three composition cards equally sized with a large unclipped gauge', async ({ page, request }) => {
     const walletId = await createWallet(request)
     await createPatrimony(request, walletId, 'stocks', 500000)
     await createPatrimony(request, walletId, 'fixed_income', 300000)
@@ -261,9 +261,19 @@ test.describe('Dashboard Composition Charts', () => {
       return heightSpread <= 2 && widthSpread <= 2
     }).toBe(true)
 
+    const cardBox = await page.locator('[data-testid="risk-chart"]').boundingBox()
     const gaugeBox = await page.locator('[data-testid="risk-chart"] .composition__chart').boundingBox()
+    const allocationCanvasBox = await page.locator('[data-testid="allocation-chart"] canvas').boundingBox()
+    expect(cardBox).not.toBeNull()
     expect(gaugeBox).not.toBeNull()
-    expect(Math.abs(gaugeBox!.height - gaugeBox!.width / 2)).toBeLessThanOrEqual(2)
+    expect(allocationCanvasBox).not.toBeNull()
+
+    expect(Math.abs(gaugeBox!.height - gaugeBox!.width)).toBeLessThanOrEqual(2)
+
+    expect(gaugeBox!.width).toBeGreaterThan(allocationCanvasBox!.width / 2)
+
+    expect(gaugeBox!.y).toBeGreaterThanOrEqual(cardBox!.y)
+    expect(gaugeBox!.y + gaugeBox!.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height + 1)
   })
 
   test('draws the risk half-circle gauge with per rank colors and a right side legend', async ({ page, request }) => {
