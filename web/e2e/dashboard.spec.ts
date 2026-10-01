@@ -65,6 +65,53 @@ function canvasContainsColor(page: Page, containerTestId: string, rgb: readonly 
     }, rgb)
 }
 
+function riskGaugeShape(page: Page, containerTestId: string, rgbs: ReadonlyArray<readonly [number, number, number]>) {
+  return page
+    .locator(`[data-testid="${containerTestId}"] canvas`)
+    .evaluate((canvas, colors) => {
+      const canvasElement = canvas as HTMLCanvasElement
+      const context = canvasElement.getContext('2d')
+      if (!context) {
+        return null
+      }
+      const { width, height } = canvasElement
+      const image = context.getImageData(0, 0, width, height).data
+      let minY = height
+      let maxY = -1
+      let minX = width
+      let maxX = -1
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const index = (y * width + x) * 4
+          for (const color of colors) {
+            if (image[index] === color[0] && image[index + 1] === color[1] && image[index + 2] === color[2]) {
+              if (y < minY) minY = y
+              if (y > maxY) maxY = y
+              if (x < minX) minX = x
+              if (x > maxX) maxX = x
+              break
+            }
+          }
+        }
+      }
+      const yBottomStart = Math.floor(height * 0.85)
+      const bottomImage = context.getImageData(0, yBottomStart, width, height - yBottomStart).data
+      let bottomHasColors = false
+      for (let i = 0; i < bottomImage.length && !bottomHasColors; i += 4) {
+        for (const color of colors) {
+          if (bottomImage[i] === color[0] && bottomImage[i + 1] === color[1] && bottomImage[i + 2] === color[2]) {
+            bottomHasColors = true
+            break
+          }
+        }
+      }
+      return {
+        heightOverWidth: maxY < 0 ? 1 : (maxY - minY) / Math.max(1, maxX - minX),
+        bottomHasColors,
+      }
+    }, rgbs.map((rgb) => [...rgb]))
+}
+
 const RISK_RANK_COLOR = {
   red: [220, 38, 38],
   amber: [245, 158, 11],
@@ -169,7 +216,7 @@ test.describe('Dashboard Composition Charts', () => {
 
     await expect(allocationCanvas).toBeVisible()
     await expect(riskCanvas).toBeVisible()
-    await expect(page.locator('[data-testid="risk-legend"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid="risk-legend"]')).toBeVisible()
   })
 
   test('renders the dividends card between allocation and risk cards', async ({ page, request }) => {
@@ -183,11 +230,53 @@ test.describe('Dashboard Composition Charts', () => {
     await expect(titles).toHaveText([
       'Alocação de Patrimônio',
       'Dividendos',
-      'Gerenciamento de Risco',
+      'Gerenciamento de Risco (notas)',
     ])
   })
 
-  test('draws one risk slice per dashboard/risk item with per rank colors', async ({ page, request }) => {
+  test('keeps the three composition cards equally sized with a large unclipped gauge', async ({ page, request }) => {
+    const walletId = await createWallet(request)
+    await createPatrimony(request, walletId, 'stocks', 500000)
+    await createPatrimony(request, walletId, 'fixed_income', 300000)
+    await createPosition(request, walletId, 'PETR4')
+
+    await page.goto('/')
+
+    const cards = page.locator('.composition__card')
+    await expect(cards).toHaveCount(3)
+
+    await expect.poll(async () => {
+      const boxes = []
+      for (let index = 0; index < 3; index++) {
+        const box = await cards.nth(index).boundingBox()
+        if (!box) {
+          return false
+        }
+        boxes.push(box)
+      }
+      const heights = boxes.map((box) => box.height)
+      const widths = boxes.map((box) => box.width)
+      const heightSpread = Math.max(...heights) - Math.min(...heights)
+      const widthSpread = Math.max(...widths) - Math.min(...widths)
+      return heightSpread <= 2 && widthSpread <= 2
+    }).toBe(true)
+
+    const cardBox = await page.locator('[data-testid="risk-chart"]').boundingBox()
+    const gaugeBox = await page.locator('[data-testid="risk-chart"] .composition__chart').boundingBox()
+    const allocationCanvasBox = await page.locator('[data-testid="allocation-chart"] canvas').boundingBox()
+    expect(cardBox).not.toBeNull()
+    expect(gaugeBox).not.toBeNull()
+    expect(allocationCanvasBox).not.toBeNull()
+
+    expect(Math.abs(gaugeBox!.height - gaugeBox!.width)).toBeLessThanOrEqual(2)
+
+    expect(gaugeBox!.width).toBeGreaterThan(allocationCanvasBox!.width * 0.9)
+
+    expect(gaugeBox!.y).toBeGreaterThanOrEqual(cardBox!.y)
+    expect(gaugeBox!.y + gaugeBox!.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height + 1)
+  })
+
+  test('draws the risk half-circle gauge with per rank colors and a bottom legend', async ({ page, request }) => {
     await createWallet(request)
 
     await page.route('**/api/v1/wallets/*/dashboard/risk', async (route) => {
@@ -209,8 +298,14 @@ test.describe('Dashboard Composition Charts', () => {
 
     await page.goto('/')
 
-    await expect(page.locator('[data-testid="risk-chart"] canvas')).toBeVisible()
+    const riskCanvas = page.locator('[data-testid="risk-chart"] canvas')
+    await expect(riskCanvas).toBeVisible()
 
+    const gaugeColors = [
+      RISK_RANK_COLOR.yellow,
+      RISK_RANK_COLOR.cyan,
+      RISK_RANK_COLOR.green,
+    ] as const
     await expect.poll(() =>
       canvasContainsColor(page, 'risk-chart', RISK_RANK_COLOR.yellow),
     ).toBe(true)
@@ -220,6 +315,25 @@ test.describe('Dashboard Composition Charts', () => {
     await expect.poll(() =>
       canvasContainsColor(page, 'risk-chart', RISK_RANK_COLOR.green),
     ).toBe(true)
+
+    await expect.poll(async () => {
+      const shape = await riskGaugeShape(page, 'risk-chart', gaugeColors)
+      return shape !== null && shape.heightOverWidth <= 0.75 && !shape.bottomHasColors
+    }).toBe(true)
+
+    const legend = page.locator('[data-testid="risk-legend"]')
+    await expect(legend).toBeVisible()
+    await expect(legend.locator('.composition__risk-legend-item')).toHaveText([
+      'Boa (3)',
+      'Ótimo (4)',
+      'Excelente (5)',
+    ])
+
+    const canvasBox = await riskCanvas.boundingBox()
+    const legendBox = await legend.boundingBox()
+    expect(canvasBox).not.toBeNull()
+    expect(legendBox).not.toBeNull()
+    expect(legendBox!.y).toBeGreaterThanOrEqual(canvasBox!.y + canvasBox!.height - 2)
   })
 
   test('draws the high risk slice in red for a rank 1 portfolio', async ({ page, request }) => {

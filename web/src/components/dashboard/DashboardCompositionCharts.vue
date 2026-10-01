@@ -40,7 +40,7 @@ const RISK_LEGENDS: Record<number, string> = {
   1: 'Alto Risco',
   2: 'Risco',
   3: 'Boa',
-  4: 'Ótima',
+  4: 'Ótimo',
   5: 'Excelente',
 }
 
@@ -194,13 +194,15 @@ const riskChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: true,
   cutout: '65%',
+  circumference: 180,
+  rotation: -90,
   plugins: {
     percentageLabels: {
       labels: riskPercentageLabels.value,
       color: PERCENTAGE_LABEL_COLOR,
     },
     legend: {
-      position: 'bottom',
+      display: false,
     },
     tooltip: {
       callbacks: {
@@ -239,14 +241,33 @@ const riskChartOptions = computed(() => ({
     </article>
 
     <article class="composition__card" data-testid="risk-chart">
-      <h2 class="composition__title">Gerenciamento de Risco</h2>
-      <div class="composition__chart">
-        <Chart
-          type="doughnut"
-          :data="riskChartData"
-          :options="riskChartOptions"
-          :plugins="chartPlugins"
-        />
+      <h2 class="composition__title">Gerenciamento de Risco <span class="composition__title-suffix">(notas)</span></h2>
+      <div class="composition__risk-container">
+        <div class="composition__chart">
+          <Chart
+            type="doughnut"
+            :data="riskChartData"
+            :options="riskChartOptions"
+            :plugins="chartPlugins"
+          />
+        </div>
+        <ul
+          v-if="risk?.items && risk.items.length > 0"
+          class="composition__risk-legend"
+          data-testid="risk-legend"
+        >
+          <li
+            v-for="(item, index) in risk?.items ?? []"
+            :key="item.rank"
+            class="composition__risk-legend-item"
+          >
+            <span
+              class="composition__risk-legend-swatch"
+              :style="{ backgroundColor: riskColor(item.rank, index) }"
+            ></span>
+            <span class="composition__risk-legend-label">{{ riskLabel(item.rank) }} ({{ item.rank }})</span>
+          </li>
+        </ul>
       </div>
     </article>
   </section>
@@ -257,6 +278,7 @@ const riskChartOptions = computed(() => ({
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
   gap: 1rem;
 }
 
@@ -264,6 +286,7 @@ const riskChartOptions = computed(() => ({
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  min-width: 0;
   padding: 1.25rem 1.5rem;
   border-radius: 0.75rem;
   background: var(--p-content-background, #ffffff);
@@ -282,6 +305,53 @@ const riskChartOptions = computed(() => ({
 .composition__chart {
   position: relative;
   width: 100%;
+}
+
+.composition__title-suffix {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--p-text-muted-color, #64748b);
+}
+
+.composition__risk-container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 0;
+}
+
+.composition__risk-container .composition__chart {
+  width: 100%;
+  min-width: 0;
+}
+
+.composition__risk-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  justify-content: center;
+}
+
+.composition__risk-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.composition__risk-legend-swatch {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 0.125rem;
+  flex-shrink: 0;
 }
 
 .composition__card--reserved {
