@@ -143,6 +143,7 @@ Common error codes:
 - `PATRIMONY_ALREADY_EXISTS`: duplicate patrimony for the same wallet, year, month and type
 - `PATRIMONY_NOT_FOUND`: patrimony id not found or does not belong to the wallet
 - `ASSET_NOT_FOUND`: asset id not found
+- `DIVIDEND_ALREADY_EXISTS`: duplicate dividend for the same wallet and year
 - `WALLET_NOT_FOUND`: wallet does not exist (returned by the wallet validation middleware)
 - `INTERNAL_ERROR`: unexpected server error
 
@@ -245,6 +246,61 @@ Errors: `422 Unprocessable Entity` (invalid date format, or `start_date > end_da
 - **URL**: `DELETE /api/v1/wallets/:id/assets/:id`
 - **Response**: `204 No Content` on success. The corresponding patrimony record (wallet/type/year/month) is recalculated inside the same transaction. If the sum becomes zero, the patrimony record amount is set to zero (kept as record).
 - **Errors**: `404 Not Found` (asset not found), `500 Internal Server Error`.
+
+---
+
+## Dividends
+
+Yearly total dividends received per wallet. All monetary values are integer cents (e.g. `150000` means R$ 1.500,00). The `year` must be between 1900 and the current year + 1 and the `amount` must be greater than zero. Only one dividend record is allowed per wallet and year. There is no delete endpoint.
+
+### Create Dividend
+- **URL**: `POST /api/v1/wallets/:id/dividends`
+- **Request Body**:
+
+```json
+{
+  "year": 2025,
+  "amount": 150000
+}
+```
+
+- **Response**: `201 Created`
+
+```json
+{
+  "data": {
+    "id": "dividend-id",
+    "year": 2025,
+    "amount": 150000
+  }
+}
+```
+
+Errors: `400 Bad Request` (validation), `409 Conflict` (`DIVIDEND_ALREADY_EXISTS`), `404 Not Found` (`WALLET_NOT_FOUND`), `500 Internal Server Error`.
+
+### List Dividends
+- **URL**: `GET /api/v1/wallets/:id/dividends?year=`
+- **Query Parameters** (optional):
+  - `year`: exact year filter (e.g. `2025`)
+- **Response**: `200 OK` with dividends ordered by `year DESC`
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "id": "dividend-id",
+        "year": 2025,
+        "amount": 150000
+      }
+    ]
+  }
+}
+```
+
+A `year` filter without matches returns `200 OK` with `items: []`.
+
+Errors: `400 Bad Request` (invalid `year` format), `404 Not Found` (`WALLET_NOT_FOUND`), `500 Internal Server Error`.
 
 ---
 
