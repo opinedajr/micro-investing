@@ -278,6 +278,7 @@ const riskChartOptions = computed(() => ({
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
   gap: 1rem;
 }
 
@@ -285,6 +286,7 @@ const riskChartOptions = computed(() => ({
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  min-width: 0;
   padding: 1.25rem 1.5rem;
   border-radius: 0.75rem;
   background: var(--p-content-background, #ffffff);
@@ -315,13 +317,17 @@ const riskChartOptions = computed(() => ({
 
 .composition__risk-container {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: 1rem;
+  min-height: 0;
 }
 
 .composition__risk-container .composition__chart {
   flex: 1;
   min-width: 0;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
 }
 
 .composition__risk-legend {

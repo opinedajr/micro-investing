@@ -234,6 +234,38 @@ test.describe('Dashboard Composition Charts', () => {
     ])
   })
 
+  test('keeps the three composition cards equally sized without dead space under the gauge', async ({ page, request }) => {
+    const walletId = await createWallet(request)
+    await createPatrimony(request, walletId, 'stocks', 500000)
+    await createPatrimony(request, walletId, 'fixed_income', 300000)
+    await createPosition(request, walletId, 'PETR4')
+
+    await page.goto('/')
+
+    const cards = page.locator('.composition__card')
+    await expect(cards).toHaveCount(3)
+
+    await expect.poll(async () => {
+      const boxes = []
+      for (let index = 0; index < 3; index++) {
+        const box = await cards.nth(index).boundingBox()
+        if (!box) {
+          return false
+        }
+        boxes.push(box)
+      }
+      const heights = boxes.map((box) => box.height)
+      const widths = boxes.map((box) => box.width)
+      const heightSpread = Math.max(...heights) - Math.min(...heights)
+      const widthSpread = Math.max(...widths) - Math.min(...widths)
+      return heightSpread <= 2 && widthSpread <= 2
+    }).toBe(true)
+
+    const gaugeBox = await page.locator('[data-testid="risk-chart"] .composition__chart').boundingBox()
+    expect(gaugeBox).not.toBeNull()
+    expect(Math.abs(gaugeBox!.height - gaugeBox!.width / 2)).toBeLessThanOrEqual(2)
+  })
+
   test('draws the risk half-circle gauge with per rank colors and a right side legend', async ({ page, request }) => {
     await createWallet(request)
 
