@@ -318,13 +318,14 @@ const riskChartOptions = computed(() => ({
 .composition__risk-container {
   display: flex;
   flex: 1;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.75rem;
   min-height: 0;
 }
 
 .composition__risk-container .composition__chart {
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
@@ -333,15 +334,15 @@ const riskChartOptions = computed(() => ({
   margin: 0;
   padding: 0;
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  justify-content: center;
 }
 
 .composition__risk-legend-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.375rem;
   font-size: 0.8125rem;
   white-space: nowrap;
 }
@@ -390,10 +391,6 @@ const riskChartOptions = computed(() => ({
 @media (max-width: 960px) {
   .composition {
     grid-template-columns: 1fr;
-  }
-
-  .composition__risk-container {
-    flex-direction: column;
   }
 }
 </style>

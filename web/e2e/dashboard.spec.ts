@@ -270,13 +270,13 @@ test.describe('Dashboard Composition Charts', () => {
 
     expect(Math.abs(gaugeBox!.height - gaugeBox!.width)).toBeLessThanOrEqual(2)
 
-    expect(gaugeBox!.width).toBeGreaterThan(allocationCanvasBox!.width / 2)
+    expect(gaugeBox!.width).toBeGreaterThan(allocationCanvasBox!.width * 0.9)
 
     expect(gaugeBox!.y).toBeGreaterThanOrEqual(cardBox!.y)
     expect(gaugeBox!.y + gaugeBox!.height).toBeLessThanOrEqual(cardBox!.y + cardBox!.height + 1)
   })
 
-  test('draws the risk half-circle gauge with per rank colors and a right side legend', async ({ page, request }) => {
+  test('draws the risk half-circle gauge with per rank colors and a bottom legend', async ({ page, request }) => {
     await createWallet(request)
 
     await page.route('**/api/v1/wallets/*/dashboard/risk', async (route) => {
@@ -333,7 +333,7 @@ test.describe('Dashboard Composition Charts', () => {
     const legendBox = await legend.boundingBox()
     expect(canvasBox).not.toBeNull()
     expect(legendBox).not.toBeNull()
-    expect(legendBox!.x).toBeGreaterThanOrEqual(canvasBox!.x + canvasBox!.width - 2)
+    expect(legendBox!.y).toBeGreaterThanOrEqual(canvasBox!.y + canvasBox!.height - 2)
   })
 
   test('draws the high risk slice in red for a rank 1 portfolio', async ({ page, request }) => {

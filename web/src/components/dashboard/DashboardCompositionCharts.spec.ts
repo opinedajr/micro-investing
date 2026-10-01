@@ -127,16 +127,19 @@ describe('DashboardCompositionCharts', () => {
     expect(chart.data.datasets[0].data).toHaveLength(2)
   })
 
-  it('renders the custom risk legend beside the gauge with label and rank', () => {
+  it('renders the custom risk legend below the gauge with label and rank', () => {
     const wrapper = mount(DashboardCompositionCharts, {
       props: { allocation, risk },
     })
 
-    const legend = wrapper.find('[data-testid="risk-legend"]')
+    const riskCard = wrapper.find('[data-testid="risk-chart"]')
+    const chart = riskCard.find('.composition__chart')
+    const legend = riskCard.find('[data-testid="risk-legend"]')
     const items = legend.findAll('.composition__risk-legend-item')
     const swatches = legend.findAll('.composition__risk-legend-swatch')
 
     expect(legend.exists()).toBe(true)
+    expect(chart.element.nextElementSibling).toBe(legend.element)
     expect(items.map((item) => item.text())).toEqual(['Boa (3)', 'Ótimo (4)', 'Excelente (5)'])
     expect(swatches).toHaveLength(3)
     expect((swatches[0].element as HTMLElement).style.backgroundColor).toBe('rgb(234, 179, 8)')
