@@ -149,3 +149,63 @@ func (s *E2ESuite) TestPosition_StockSnapshot_MissingStockReturnsNull() {
 	updateResp.Value("stock_id").String().IsEqual(orphanID)
 	updateResp.Value("stock").IsNull()
 }
+
+func (s *E2ESuite) TestPosition_StockSnapshot_OrphanWithTickerFilterAndSort() {
+	walletID := s.positionWalletID("Carteira Órfã Filtro")
+	petr4 := s.seededStockByTicker("PETR4")
+	vale3 := s.seededStockByTicker("VALE3")
+	s.positionInsertPrice(petr4.id, 7500)
+	s.positionInsertPrice(vale3.id, 12000)
+
+	validID := s.positionCreate(walletID, petr4.id, 10, 1000)
+	orphanPositionID := s.positionCreate(walletID, vale3.id, 5, 2000)
+
+	orphanID := "11111111-2222-3333-4444-555555555555"
+	err := s.container.DB().
+		Exec("UPDATE positions SET stock_id = ? WHERE id = ?", orphanID, orphanPositionID).Error
+	s.Require().NoError(err)
+
+	filtered := s.expect.GET("/api/v1/wallets/{id}/positions").
+		WithPath("id", walletID).
+		WithQuery("ticker", "petr").
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Array()
+
+	filtered.Length().IsEqual(1)
+	filtered.First().Object().Value("id").String().IsEqual(validID)
+
+	byTicker := s.expect.GET("/api/v1/wallets/{id}/positions").
+		WithPath("id", walletID).
+		WithQuery("sort", "ticker").
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Array()
+
+	byTicker.Length().IsEqual(2)
+	byTicker.First().Object().Value("stock_id").String().IsEqual(orphanID)
+	byTicker.First().Object().Value("stock").IsNull()
+	byTicker.Last().Object().Value("stock_id").String().IsEqual(petr4.id)
+
+	byRank := s.expect.GET("/api/v1/wallets/{id}/positions").
+		WithPath("id", walletID).
+		WithQuery("sort", "rank").
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Array()
+
+	byRank.Length().IsEqual(2)
+	byRank.First().Object().Value("stock_id").String().IsEqual(orphanID)
+	byRank.Last().Object().Value("stock_id").String().IsEqual(petr4.id)
+
+	byTickerDesc := s.expect.GET("/api/v1/wallets/{id}/positions").
+		WithPath("id", walletID).
+		WithQuery("sort", "-ticker").
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Array()
+
+	byTickerDesc.Length().IsEqual(2)
+	byTickerDesc.First().Object().Value("stock_id").String().IsEqual(petr4.id)
+	byTickerDesc.Last().Object().Value("stock_id").String().IsEqual(orphanID)
+}
