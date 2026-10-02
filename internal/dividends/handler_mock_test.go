@@ -4,6 +4,7 @@ import "context"
 
 type serviceFuncs struct {
 	createFunc func(ctx context.Context, input CreateDividendInput) (*DividendOutput, error)
+	updateFunc func(ctx context.Context, input UpdateDividendInput) (*DividendOutput, error)
 	listFunc   func(ctx context.Context, filter DividendFilter) ([]DividendOutput, error)
 }
 
@@ -18,6 +19,13 @@ func newMockService(fn serviceFuncs) *mockService {
 func (m *mockService) Create(ctx context.Context, input CreateDividendInput) (*DividendOutput, error) {
 	if m.createFunc != nil {
 		return m.createFunc(ctx, input)
+	}
+	return nil, nil
+}
+
+func (m *mockService) Update(ctx context.Context, input UpdateDividendInput) (*DividendOutput, error) {
+	if m.updateFunc != nil {
+		return m.updateFunc(ctx, input)
 	}
 	return nil, nil
 }

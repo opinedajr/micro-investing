@@ -57,6 +57,42 @@ func (h *Handler) Create(c *gin.Context) {
 	})
 }
 
+func (h *Handler) Update(c *gin.Context) {
+	var input UpdateDividendInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "Invalid JSON format",
+			},
+		})
+		return
+	}
+
+	if err := h.validator.Struct(&input); err != nil {
+		c.JSON(http.StatusBadRequest, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "Validation failed",
+			},
+		})
+		return
+	}
+
+	input.WalletID = c.Param("id")
+	input.ID = c.Param("dividendId")
+
+	output, err := h.service.Update(c.Request.Context(), input)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, api.Response[*DividendOutput]{
+		Data: output,
+	})
+}
+
 func (h *Handler) List(c *gin.Context) {
 	filter := DividendFilter{
 		WalletID: c.Param("id"),
@@ -89,6 +125,13 @@ func (h *Handler) List(c *gin.Context) {
 
 func (h *Handler) handleServiceError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, ErrDividendNotFound):
+		c.JSON(http.StatusNotFound, api.Response[interface{}]{
+			Error: &api.APIError{
+				Code:    "DIVIDEND_NOT_FOUND",
+				Message: "Dividend not found",
+			},
+		})
 	case errors.Is(err, ErrDividendAlreadyExists):
 		c.JSON(http.StatusConflict, api.Response[interface{}]{
 			Error: &api.APIError{
