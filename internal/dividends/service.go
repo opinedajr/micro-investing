@@ -8,6 +8,7 @@ import (
 
 type Service interface {
 	Create(ctx context.Context, input CreateDividendInput) (*DividendOutput, error)
+	Update(ctx context.Context, input UpdateDividendInput) (*DividendOutput, error)
 	List(ctx context.Context, filter DividendFilter) ([]DividendOutput, error)
 }
 
@@ -39,6 +40,36 @@ func (s *dividendService) Create(ctx context.Context, input CreateDividendInput)
 	}
 
 	if err := s.repo.Create(ctx, dividend); err != nil {
+		return nil, err
+	}
+
+	return toOutput(dividend), nil
+}
+
+func (s *dividendService) Update(ctx context.Context, input UpdateDividendInput) (*DividendOutput, error) {
+	if err := validateDividendInput(input.Year, input.Amount); err != nil {
+		return nil, err
+	}
+
+	dividend, err := s.repo.FindByID(ctx, input.WalletID, input.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if dividend.Year != input.Year {
+		existing, err := s.repo.FindByWalletYear(ctx, input.WalletID, input.Year)
+		if err != nil && !errors.Is(err, ErrDividendNotFound) {
+			return nil, err
+		}
+		if existing != nil && existing.ID != dividend.ID {
+			return nil, ErrDividendAlreadyExists
+		}
+	}
+
+	dividend.Year = input.Year
+	dividend.Amount = input.Amount
+
+	if err := s.repo.Update(ctx, dividend); err != nil {
 		return nil, err
 	}
 

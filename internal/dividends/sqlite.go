@@ -40,3 +40,19 @@ func (r *SQLiteRepository) FindByWalletYear(ctx context.Context, walletID string
 	}
 	return &dividend, nil
 }
+
+func (r *SQLiteRepository) FindByID(ctx context.Context, walletID string, id string) (*Dividend, error) {
+	var dividend Dividend
+	err := r.db.WithContext(ctx).Where("wallet_id = ? AND id = ?", walletID, id).First(&dividend).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrDividendNotFound
+		}
+		return nil, err
+	}
+	return &dividend, nil
+}
+
+func (r *SQLiteRepository) Update(ctx context.Context, dividend *Dividend) error {
+	return r.db.WithContext(ctx).Save(dividend).Error
+}

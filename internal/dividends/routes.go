@@ -13,4 +13,5 @@ func RegisterRoutes(rg *gin.RouterGroup, h *Handler, walletService wallet.Servic
 	dividends := wallets.Group("/:id/dividends")
 	dividends.GET("", h.List)
 	dividends.POST("", h.Create)
+	dividends.PUT("/:dividendId", h.Update)
 }

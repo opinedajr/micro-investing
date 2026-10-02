@@ -144,6 +144,7 @@ Common error codes:
 - `PATRIMONY_NOT_FOUND`: patrimony id not found or does not belong to the wallet
 - `ASSET_NOT_FOUND`: asset id not found
 - `DIVIDEND_ALREADY_EXISTS`: duplicate dividend for the same wallet and year
+- `DIVIDEND_NOT_FOUND`: dividend not found for the given wallet and id
 - `WALLET_NOT_FOUND`: wallet does not exist (returned by the wallet validation middleware)
 - `INTERNAL_ERROR`: unexpected server error
 
@@ -277,6 +278,33 @@ Yearly total dividends received per wallet. All monetary values are integer cent
 ```
 
 Errors: `400 Bad Request` (validation), `409 Conflict` (`DIVIDEND_ALREADY_EXISTS`), `404 Not Found` (`WALLET_NOT_FOUND`), `500 Internal Server Error`.
+
+### Update Dividend
+- **URL**: `PUT /api/v1/wallets/:id/dividends/:dividendId`
+- **Request Body**:
+
+```json
+{
+  "year": 2026,
+  "amount": 175000
+}
+```
+
+- **Response**: `200 OK`
+
+```json
+{
+  "data": {
+    "id": "dividend-id",
+    "year": 2026,
+    "amount": 175000
+  }
+}
+```
+
+Both `year` and `amount` are replaced with the same validation rules as creation. Keeping the same year (only changing the amount) is allowed.
+
+Errors: `400 Bad Request` (validation), `404 Not Found` (`DIVIDEND_NOT_FOUND` or `WALLET_NOT_FOUND`), `409 Conflict` (`DIVIDEND_ALREADY_EXISTS`), `500 Internal Server Error`.
 
 ### List Dividends
 - **URL**: `GET /api/v1/wallets/:id/dividends?year=`
