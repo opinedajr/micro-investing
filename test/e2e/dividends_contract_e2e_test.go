@@ -175,3 +175,151 @@ func (s *E2ESuite) TestDividends_CreateThenList_RoundTrip() {
 	item.Value("year").Number().IsEqual(2022)
 	item.Value("amount").Number().IsEqual(123456)
 }
+
+func (s *E2ESuite) TestDividends_Update_Valid() {
+	walletID := s.createWallet("Carteira Dividendos Edicao")
+
+	created := s.expect.POST("/api/v1/wallets/{walletId}/dividends").
+		WithPath("walletId", walletID).
+		WithJSON(map[string]interface{}{"year": 2023, "amount": 100000}).
+		Expect().
+		Status(http.StatusCreated).
+		JSON().Object().Value("data").Object()
+
+	createdID := created.Value("id").String().NotEmpty().Raw()
+
+	s.expect.POST("/api/v1/wallets/{walletId}/dividends").
+		WithPath("walletId", walletID).
+		WithJSON(map[string]interface{}{"year": 2024, "amount": 50000}).
+		Expect().
+		Status(http.StatusCreated)
+
+	updated := s.expect.PUT("/api/v1/wallets/{walletId}/dividends/{dividendId}").
+		WithPath("walletId", walletID).
+		WithPath("dividendId", createdID).
+		WithJSON(map[string]interface{}{"year": 2022, "amount": 250000}).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Object()
+
+	updated.Value("id").String().IsEqual(createdID)
+	updated.Value("year").Number().IsEqual(2022)
+	updated.Value("amount").Number().IsEqual(250000)
+
+	items := s.expect.GET("/api/v1/wallets/{walletId}/dividends").
+		WithPath("walletId", walletID).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Object().Value("items").Array()
+
+	items.Length().IsEqual(2)
+}
+
+func (s *E2ESuite) TestDividends_Update_NotFound() {
+	walletID := s.createWallet("Carteira Dividendos Edicao Inexistente")
+
+	s.expect.PUT("/api/v1/wallets/{walletId}/dividends/{dividendId}").
+		WithPath("walletId", walletID).
+		WithPath("dividendId", "00000000-0000-0000-0000-000000000000").
+		WithJSON(map[string]interface{}{"year": 2023, "amount": 100000}).
+		Expect().
+		Status(http.StatusNotFound).
+		JSON().Object().Value("error").Object().Value("code").String().IsEqual("DIVIDEND_NOT_FOUND")
+}
+
+func (s *E2ESuite) TestDividends_Update_YearConflict() {
+	walletID := s.createWallet("Carteira Dividendos Edicao Conflito")
+
+	s.expect.POST("/api/v1/wallets/{walletId}/dividends").
+		WithPath("walletId", walletID).
+		WithJSON(map[string]interface{}{"year": 2023, "amount": 100000}).
+		Expect().
+		Status(http.StatusCreated)
+
+	other := s.expect.POST("/api/v1/wallets/{walletId}/dividends").
+		WithPath("walletId", walletID).
+		WithJSON(map[string]interface{}{"year": 2024, "amount": 50000}).
+		Expect().
+		Status(http.StatusCreated).
+		JSON().Object().Value("data").Object()
+
+	otherID := other.Value("id").String().NotEmpty().Raw()
+
+	s.expect.PUT("/api/v1/wallets/{walletId}/dividends/{dividendId}").
+		WithPath("walletId", walletID).
+		WithPath("dividendId", otherID).
+		WithJSON(map[string]interface{}{"year": 2023, "amount": 60000}).
+		Expect().
+		Status(http.StatusConflict).
+		JSON().Object().Value("error").Object().Value("code").String().IsEqual("DIVIDEND_ALREADY_EXISTS")
+
+	items := s.expect.GET("/api/v1/wallets/{walletId}/dividends").
+		WithPath("walletId", walletID).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Object().Value("items").Array()
+
+	items.Length().IsEqual(2)
+}
+
+func (s *E2ESuite) TestDividends_Update_SameYearAllowed() {
+	walletID := s.createWallet("Carteira Dividendos Edicao Mesmo Ano")
+
+	created := s.expect.POST("/api/v1/wallets/{walletId}/dividends").
+		WithPath("walletId", walletID).
+		WithJSON(map[string]interface{}{"year": 2023, "amount": 100000}).
+		Expect().
+		Status(http.StatusCreated).
+		JSON().Object().Value("data").Object()
+
+	createdID := created.Value("id").String().NotEmpty().Raw()
+
+	s.expect.PUT("/api/v1/wallets/{walletId}/dividends/{dividendId}").
+		WithPath("walletId", walletID).
+		WithPath("dividendId", createdID).
+		WithJSON(map[string]interface{}{"year": 2023, "amount": 111000}).
+		Expect().
+		Status(http.StatusOK)
+}
+
+func (s *E2ESuite) TestDividends_Update_InvalidYear() {
+	walletID := s.createWallet("Carteira Dividendos Edicao Ano Invalido")
+
+	created := s.expect.POST("/api/v1/wallets/{walletId}/dividends").
+		WithPath("walletId", walletID).
+		WithJSON(map[string]interface{}{"year": 2023, "amount": 100000}).
+		Expect().
+		Status(http.StatusCreated).
+		JSON().Object().Value("data").Object()
+
+	createdID := created.Value("id").String().NotEmpty().Raw()
+
+	s.expect.PUT("/api/v1/wallets/{walletId}/dividends/{dividendId}").
+		WithPath("walletId", walletID).
+		WithPath("dividendId", createdID).
+		WithJSON(map[string]interface{}{"year": 1899, "amount": 100000}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().Object().Value("error").Object().Value("code").String().IsEqual("VALIDATION_ERROR")
+}
+
+func (s *E2ESuite) TestDividends_Update_InvalidAmount() {
+	walletID := s.createWallet("Carteira Dividendos Edicao Valor Invalido")
+
+	created := s.expect.POST("/api/v1/wallets/{walletId}/dividends").
+		WithPath("walletId", walletID).
+		WithJSON(map[string]interface{}{"year": 2023, "amount": 100000}).
+		Expect().
+		Status(http.StatusCreated).
+		JSON().Object().Value("data").Object()
+
+	createdID := created.Value("id").String().NotEmpty().Raw()
+
+	s.expect.PUT("/api/v1/wallets/{walletId}/dividends/{dividendId}").
+		WithPath("walletId", walletID).
+		WithPath("dividendId", createdID).
+		WithJSON(map[string]interface{}{"year": 2023, "amount": 0}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().Object().Value("error").Object().Value("code").String().IsEqual("VALIDATION_ERROR")
+}
