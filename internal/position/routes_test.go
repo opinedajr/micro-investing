@@ -172,3 +172,128 @@ func TestRegisterRoutes(t *testing.T) {
 		assert.Equal(t, "p1", response.Data.ID)
 	})
 }
+
+func TestPositionRoutes_StockSnapshotContract(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	snapshot := &StockSnapshotOutput{
+		ID: "stock-uuid", Ticker: "PETR4", Name: "Petrobras PN", Sector: "Petróleo, Gás e Biocombustíveis", Rank: 10,
+	}
+
+	setupRouter := func(mockSvc Service) *gin.Engine {
+		handler := NewHandler(mockSvc)
+		r := gin.New()
+		v1 := r.Group("/api/v1")
+		RegisterRoutes(v1, handler, &mockWalletServiceForRoutes{})
+		return r
+	}
+
+	t.Run("success - list embeds stock object with exactly five fields", func(t *testing.T) {
+		mockSvc := &mockService{
+			listFunc: func(ctx context.Context, filter PositionFilter) ([]PositionOutput, error) {
+				return []PositionOutput{{ID: "p1", WalletID: filter.WalletID, StockID: "stock-uuid", Stock: snapshot}}, nil
+			},
+		}
+
+		r := setupRouter(mockSvc)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var raw map[string]interface{}
+		assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &raw))
+		items := raw["data"].([]interface{})
+		assert.Len(t, items, 1)
+		stock := items[0].(map[string]interface{})["stock"].(map[string]interface{})
+		assert.Equal(t, map[string]interface{}{
+			"id":     "stock-uuid",
+			"ticker": "PETR4",
+			"name":   "Petrobras PN",
+			"sector": "Petróleo, Gás e Biocombustíveis",
+			"rank":   float64(10),
+		}, stock)
+	})
+
+	t.Run("success - find embeds stock object", func(t *testing.T) {
+		mockSvc := &mockService{
+			findFunc: func(ctx context.Context, walletID string, id string) (*PositionOutput, error) {
+				return &PositionOutput{ID: id, WalletID: walletID, StockID: "stock-uuid", Stock: snapshot}, nil
+			},
+		}
+
+		r := setupRouter(mockSvc)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions/p1", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var raw map[string]interface{}
+		assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &raw))
+		stock := raw["data"].(map[string]interface{})["stock"].(map[string]interface{})
+		assert.Equal(t, "PETR4", stock["ticker"])
+		assert.Len(t, stock, 5)
+	})
+
+	t.Run("success - create returns stock object and keeps flat stock_id", func(t *testing.T) {
+		mockSvc := newMockServiceWithCreate(func(ctx context.Context, input CreatePositionInput) (*PositionOutput, error) {
+			return &PositionOutput{ID: "position-id", StockID: input.StockID, Stock: snapshot}, nil
+		})
+
+		r := setupRouter(mockSvc)
+		body, _ := json.Marshal(map[string]interface{}{"stock_id": "stock-uuid", "quantity": 10, "average_price": 1000})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/api/v1/wallets/wallet-id/positions", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+
+		var raw map[string]interface{}
+		assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &raw))
+		data := raw["data"].(map[string]interface{})
+		assert.Equal(t, "stock-uuid", data["stock_id"])
+		assert.Equal(t, "PETR4", data["stock"].(map[string]interface{})["ticker"])
+	})
+
+	t.Run("success - update embeds stock object", func(t *testing.T) {
+		mockSvc := &mockService{
+			updateFunc: func(ctx context.Context, input UpdatePositionInput) (*PositionOutput, error) {
+				return &PositionOutput{ID: input.PositionID, StockID: "stock-uuid", Stock: snapshot}, nil
+			},
+		}
+
+		r := setupRouter(mockSvc)
+		body, _ := json.Marshal(map[string]interface{}{"quantity": 20, "average_price": 2000})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("PUT", "/api/v1/wallets/wallet-id/positions/p1", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var raw map[string]interface{}
+		assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &raw))
+		stock := raw["data"].(map[string]interface{})["stock"].(map[string]interface{})
+		assert.Equal(t, "stock-uuid", stock["id"])
+		assert.Len(t, stock, 5)
+	})
+
+	t.Run("success - stock is serialized as null when absent", func(t *testing.T) {
+		mockSvc := &mockService{
+			findFunc: func(ctx context.Context, walletID string, id string) (*PositionOutput, error) {
+				return &PositionOutput{ID: id, WalletID: walletID, StockID: "missing-stock"}, nil
+			},
+		}
+
+		r := setupRouter(mockSvc)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/api/v1/wallets/wallet-id/positions/p1", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"stock":null`)
+	})
+}
