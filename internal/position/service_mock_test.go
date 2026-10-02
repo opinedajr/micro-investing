@@ -8,14 +8,14 @@ import (
 )
 
 type mockPositionRepository struct {
-	createFunc                func(ctx context.Context, position *Position) error
-	updateFunc                func(ctx context.Context, position *Position) error
-	findByIDFunc              func(ctx context.Context, id string) (*Position, error)
-	findByFilterFunc          func(ctx context.Context, filter PositionFilter) ([]Position, error)
+	createFunc                 func(ctx context.Context, position *Position) error
+	updateFunc                 func(ctx context.Context, position *Position) error
+	findByIDFunc               func(ctx context.Context, id string) (*Position, error)
+	findByFilterFunc           func(ctx context.Context, filter PositionFilter) ([]Position, error)
 	findByWalletAndStockIDFunc func(ctx context.Context, walletID string, stockID string) (*Position, error)
-	findCurrentPricesMapFunc  func(ctx context.Context, stockIDs []string) (map[string]int64, error)
-	sumInvestedByWalletFunc   func(ctx context.Context, walletID string) (int64, error)
-	runInTransactionFunc      func(ctx context.Context, fn func(ctx context.Context) error) error
+	findCurrentPricesMapFunc   func(ctx context.Context, stockIDs []string) (map[string]int64, error)
+	sumInvestedByWalletFunc    func(ctx context.Context, walletID string) (int64, error)
+	runInTransactionFunc       func(ctx context.Context, fn func(ctx context.Context) error) error
 }
 
 func (m *mockPositionRepository) Create(ctx context.Context, position *Position) error {
@@ -75,7 +75,8 @@ func (m *mockPositionRepository) RunInTransaction(ctx context.Context, fn func(c
 }
 
 type mockStockRepository struct {
-	findByIDFunc func(ctx context.Context, id string) (*stock.Stock, error)
+	findByIDFunc  func(ctx context.Context, id string) (*stock.Stock, error)
+	findByIDsFunc func(ctx context.Context, ids []string) ([]stock.Stock, error)
 }
 
 func (m *mockStockRepository) Create(ctx context.Context, s *stock.Stock) error {
@@ -94,7 +95,10 @@ func (m *mockStockRepository) FindByID(ctx context.Context, id string) (*stock.S
 }
 
 func (m *mockStockRepository) FindByIDs(ctx context.Context, ids []string) ([]stock.Stock, error) {
-	return nil, errors.New("not implemented")
+	if m.findByIDsFunc != nil {
+		return m.findByIDsFunc(ctx, ids)
+	}
+	return nil, nil
 }
 
 func (m *mockStockRepository) List(ctx context.Context) ([]stock.Stock, error) {

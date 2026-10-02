@@ -415,6 +415,18 @@ When a position is created, `ConsolidateByWallet` recalculates every position of
 
 If a current price is missing from `stocks_current_prices`, it is treated as `0` (balance = 0, variation = -100%) and a warning is logged.
 
+Every position payload (List, Find, Create, Update) embeds a read-time `stock` snapshot object with exactly five fields — `id`, `ticker`, `name`, `sector` and `rank` — hydrated from the stock catalog at request time. The flat `stock_id` field is preserved. If the stock record for a position is unavailable, `stock` is explicitly `null` and a warning is logged; the request still succeeds and the position remains listed in List (orphan positions are not hidden).
+
+```json
+"stock": {
+  "id": "stock-uuid",
+  "ticker": "PETR4",
+  "name": "Petrobras PN",
+  "sector": "Petróleo, Gás e Biocombustíveis",
+  "rank": 10
+}
+```
+
 ### List Positions
 - **URL**: `GET /api/v1/wallets/:id/positions?ticker=&sort=`
 - **Query Parameters** (all optional):
@@ -429,6 +441,13 @@ If a current price is missing from `stocks_current_prices`, it is treated as `0`
       "id": "position-id",
       "wallet_id": "wallet-id",
       "stock_id": "stock-uuid",
+      "stock": {
+        "id": "stock-uuid",
+        "ticker": "PETR4",
+        "name": "Petrobras PN",
+        "sector": "Petróleo, Gás e Biocombustíveis",
+        "rank": 10
+      },
       "quantity": 100,
       "average_price": 5000,
       "current_price": 7500,
@@ -452,7 +471,7 @@ An empty wallet returns `200 OK` with `{"data":[]}`.
 
 ### Find Position
 - **URL**: `GET /api/v1/wallets/:id/positions/:positionId`
-- **Response**: `200 OK` with the same position payload as List, or `404 Not Found` (`POSITION_NOT_FOUND`) if the position does not exist or does not belong to the wallet in the path.
+- **Response**: `200 OK` with the same position payload as List (including the embedded `stock` snapshot, `null` when the stock record is unavailable), or `404 Not Found` (`POSITION_NOT_FOUND`) if the position does not exist or does not belong to the wallet in the path.
 
 - **Errors**:
   - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
@@ -479,6 +498,13 @@ An empty wallet returns `200 OK` with `{"data":[]}`.
     "id": "position-id",
     "wallet_id": "wallet-id",
     "stock_id": "stock-uuid",
+    "stock": {
+      "id": "stock-uuid",
+      "ticker": "PETR4",
+      "name": "Petrobras PN",
+      "sector": "Petróleo, Gás e Biocombustíveis",
+      "rank": 10
+    },
     "quantity": 100,
     "average_price": 5000,
     "current_price": 7500,
@@ -519,6 +545,13 @@ An empty wallet returns `200 OK` with `{"data":[]}`.
     "id": "position-id",
     "wallet_id": "wallet-id",
     "stock_id": "stock-uuid",
+    "stock": {
+      "id": "stock-uuid",
+      "ticker": "PETR4",
+      "name": "Petrobras PN",
+      "sector": "Petróleo, Gás e Biocombustíveis",
+      "rank": 10
+    },
     "quantity": 200,
     "average_price": 6000,
     "current_price": 7500,

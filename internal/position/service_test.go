@@ -13,10 +13,10 @@ import (
 
 type noopLogger struct{}
 
-func (n noopLogger) Debug(ctx context.Context, msg string, args ...any)   {}
-func (n noopLogger) Info(ctx context.Context, msg string, args ...any)    {}
-func (n noopLogger) Warn(ctx context.Context, msg string, args ...any)    {}
-func (n noopLogger) Error(ctx context.Context, msg string, args ...any)   {}
+func (n noopLogger) Debug(ctx context.Context, msg string, args ...any) {}
+func (n noopLogger) Info(ctx context.Context, msg string, args ...any)  {}
+func (n noopLogger) Warn(ctx context.Context, msg string, args ...any)  {}
+func (n noopLogger) Error(ctx context.Context, msg string, args ...any) {}
 func (n noopLogger) Log(ctx context.Context, level slog.Level, msg string, args ...any) {
 }
 func (n noopLogger) LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
@@ -554,5 +554,117 @@ func TestService_ConsolidateByWallet(t *testing.T) {
 		err := service.ConsolidateByWallet(context.Background(), "wallet-id")
 
 		assert.Error(t, err)
+	})
+}
+
+func TestService_StockHydration(t *testing.T) {
+	petr4 := stock.Stock{ID: "s1", Ticker: "PETR4", Name: "Petrobras PN", Sector: "Petróleo, Gás e Biocombustíveis", Rank: 6}
+	vale3 := stock.Stock{ID: "s2", Ticker: "VALE3", Name: "Vale ON", Sector: "Materiais Básicos", Rank: 8}
+
+	newStockRepo := func(calls *int) *mockStockRepository {
+		return &mockStockRepository{
+			findByIDFunc: func(ctx context.Context, id string) (*stock.Stock, error) {
+				return &petr4, nil
+			},
+			findByIDsFunc: func(ctx context.Context, ids []string) ([]stock.Stock, error) {
+				if calls != nil {
+					*calls++
+				}
+				found := make([]stock.Stock, 0, len(ids))
+				for _, id := range ids {
+					switch id {
+					case "s1":
+						found = append(found, petr4)
+					case "s2":
+						found = append(found, vale3)
+					}
+				}
+				return found, nil
+			},
+		}
+	}
+
+	t.Run("success - list embeds stock snapshot per position with single batched lookup", func(t *testing.T) {
+		calls := 0
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{ID: "p1", WalletID: "wallet-id", StockID: "s1"}
+		positionRepo.positions["p2"] = &Position{ID: "p2", WalletID: "wallet-id", StockID: "s2"}
+
+		service := NewService(positionRepo, newStockRepo(&calls), noopLogger{})
+		outputs, err := service.List(context.Background(), PositionFilter{WalletID: "wallet-id"})
+
+		assert.NoError(t, err)
+		assert.Len(t, outputs, 2)
+		assert.Equal(t, 1, calls)
+		for _, out := range outputs {
+			assert.NotNil(t, out.Stock)
+			assert.Equal(t, out.StockID, out.Stock.ID)
+			if out.Stock.ID == "s1" {
+				assert.Equal(t, "PETR4", out.Stock.Ticker)
+				assert.Equal(t, "Petrobras PN", out.Stock.Name)
+				assert.Equal(t, "Petróleo, Gás e Biocombustíveis", out.Stock.Sector)
+				assert.Equal(t, int8(6), out.Stock.Rank)
+			} else {
+				assert.Equal(t, "VALE3", out.Stock.Ticker)
+				assert.Equal(t, int8(8), out.Stock.Rank)
+			}
+		}
+	})
+
+	t.Run("success - list returns null stock when stock is missing from lookup", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{ID: "p1", WalletID: "wallet-id", StockID: "missing"}
+
+		service := NewService(positionRepo, newStockRepo(nil), noopLogger{})
+		outputs, err := service.List(context.Background(), PositionFilter{WalletID: "wallet-id"})
+
+		assert.NoError(t, err)
+		assert.Len(t, outputs, 1)
+		assert.Nil(t, outputs[0].Stock)
+	})
+
+	t.Run("success - find embeds stock snapshot", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{ID: "p1", WalletID: "wallet-id", StockID: "s1"}
+
+		service := NewService(positionRepo, newStockRepo(nil), noopLogger{})
+		output, err := service.Find(context.Background(), "wallet-id", "p1")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, output.Stock)
+		assert.Equal(t, "s1", output.Stock.ID)
+		assert.Equal(t, "PETR4", output.Stock.Ticker)
+		assert.Equal(t, int8(6), output.Stock.Rank)
+	})
+
+	t.Run("success - create embeds stock snapshot", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.prices["s1"] = 1000
+
+		service := NewService(positionRepo, newStockRepo(nil), noopLogger{})
+		output, err := service.Create(context.Background(), CreatePositionInput{
+			WalletID: "wallet-id", StockID: "s1", Quantity: 10, AveragePrice: 1000,
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, output.Stock)
+		assert.Equal(t, "PETR4", output.Stock.Ticker)
+		assert.Equal(t, "Petrobras PN", output.Stock.Name)
+	})
+
+	t.Run("success - update embeds stock snapshot", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{ID: "p1", WalletID: "wallet-id", StockID: "s2", Quantity: 10, AveragePrice: 1000}
+		positionRepo.prices["s2"] = 1000
+
+		service := NewService(positionRepo, newStockRepo(nil), noopLogger{})
+		output, err := service.Update(context.Background(), UpdatePositionInput{
+			WalletID: "wallet-id", PositionID: "p1", Quantity: 20, AveragePrice: 1500,
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, output.Stock)
+		assert.Equal(t, "VALE3", output.Stock.Ticker)
+		assert.Equal(t, int8(8), output.Stock.Rank)
 	})
 }
