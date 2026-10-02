@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opinedajr/micro-investing/internal/dashboard"
+	"github.com/opinedajr/micro-investing/internal/dividends"
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
 	"github.com/opinedajr/micro-investing/internal/infrastructure/brapi"
 	"github.com/opinedajr/micro-investing/internal/infrastructure/database"
@@ -41,6 +42,7 @@ type RepositoryDependencies struct {
 	stockRepository     stock.Repository
 	positionRepository  position.Repository
 	quotationRepository quotation.Repository
+	dividendRepository  dividends.Repository
 }
 
 type HandlerDependencies struct {
@@ -50,6 +52,7 @@ type HandlerDependencies struct {
 	stockHandler       *stock.Handler
 	positionHandler    *position.Handler
 	dashboardHandler   *dashboard.Handler
+	dividendHandler    *dividends.Handler
 }
 
 type ServiceDependencies struct {
@@ -60,6 +63,7 @@ type ServiceDependencies struct {
 	positionService    position.Service
 	dashboardService   dashboard.Service
 	quotationService   quotation.Service
+	dividendService    dividends.Service
 }
 
 func NewContainer() *Container {
@@ -235,6 +239,27 @@ func (c *Container) DashboardHandler() *dashboard.Handler {
 		c.handlers.dashboardHandler = dashboard.NewHandler(c.DashboardService())
 	}
 	return c.handlers.dashboardHandler
+}
+
+func (c *Container) DividendRepository() dividends.Repository {
+	if c.repositories.dividendRepository == nil {
+		c.repositories.dividendRepository = dividends.NewSQLiteRepository(c.DB())
+	}
+	return c.repositories.dividendRepository
+}
+
+func (c *Container) DividendService() dividends.Service {
+	if c.services.dividendService == nil {
+		c.services.dividendService = dividends.NewService(c.DividendRepository())
+	}
+	return c.services.dividendService
+}
+
+func (c *Container) DividendHandler() *dividends.Handler {
+	if c.handlers.dividendHandler == nil {
+		c.handlers.dividendHandler = dividends.NewHandler(c.DividendService())
+	}
+	return c.handlers.dividendHandler
 }
 
 func (c *Container) BrapiClient() quotation.Provider {
