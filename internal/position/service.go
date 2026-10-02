@@ -40,11 +40,20 @@ func (s *positionService) List(ctx context.Context, filter PositionFilter) ([]Po
 		return nil, err
 	}
 
-	outputs := make([]PositionOutput, 0, len(positions))
+	outputs := make([]*PositionOutput, 0, len(positions))
 	for i := range positions {
-		outputs = append(outputs, *toPositionOutput(&positions[i]))
+		outputs = append(outputs, toPositionOutput(&positions[i]))
 	}
-	return outputs, nil
+
+	if err := s.hydrateStockSnapshots(ctx, outputs); err != nil {
+		return nil, err
+	}
+
+	values := make([]PositionOutput, 0, len(outputs))
+	for _, o := range outputs {
+		values = append(values, *o)
+	}
+	return values, nil
 }
 
 func (s *positionService) Find(ctx context.Context, walletID string, id string) (*PositionOutput, error) {
@@ -57,7 +66,11 @@ func (s *positionService) Find(ctx context.Context, walletID string, id string) 
 		return nil, ErrPositionNotFound
 	}
 
-	return toPositionOutput(position), nil
+	output := toPositionOutput(position)
+	if err := s.hydrateStockSnapshots(ctx, []*PositionOutput{output}); err != nil {
+		return nil, err
+	}
+	return output, nil
 }
 
 func (s *positionService) Create(ctx context.Context, input CreatePositionInput) (*PositionOutput, error) {
@@ -105,7 +118,7 @@ func (s *positionService) Create(ctx context.Context, input CreatePositionInput)
 		return nil, err
 	}
 
-	return toPositionOutput(created), nil
+	return s.toHydratedOutput(ctx, created)
 }
 
 func (s *positionService) Update(ctx context.Context, input UpdatePositionInput) (*PositionOutput, error) {
@@ -143,7 +156,7 @@ func (s *positionService) Update(ctx context.Context, input UpdatePositionInput)
 		return nil, err
 	}
 
-	return toPositionOutput(updated), nil
+	return s.toHydratedOutput(ctx, updated)
 }
 
 func (s *positionService) ConsolidateByWallet(ctx context.Context, walletID string) error {
@@ -202,6 +215,55 @@ func (s *positionService) consolidateInTransaction(ctx context.Context, walletID
 		}
 	}
 
+	return nil
+}
+
+func (s *positionService) toHydratedOutput(ctx context.Context, p *Position) (*PositionOutput, error) {
+	output := toPositionOutput(p)
+	if err := s.hydrateStockSnapshots(ctx, []*PositionOutput{output}); err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
+func (s *positionService) hydrateStockSnapshots(ctx context.Context, outputs []*PositionOutput) error {
+	if len(outputs) == 0 {
+		return nil
+	}
+
+	stockIDs := make([]string, 0, len(outputs))
+	seen := make(map[string]struct{}, len(outputs))
+	for i := range outputs {
+		if _, ok := seen[outputs[i].StockID]; !ok {
+			seen[outputs[i].StockID] = struct{}{}
+			stockIDs = append(stockIDs, outputs[i].StockID)
+		}
+	}
+
+	stocks, err := s.stockRepo.FindByIDs(ctx, stockIDs)
+	if err != nil {
+		return err
+	}
+
+	stockMap := make(map[string]*StockSnapshotOutput, len(stocks))
+	for i := range stocks {
+		stockMap[stocks[i].ID] = &StockSnapshotOutput{
+			ID:     stocks[i].ID,
+			Ticker: stocks[i].Ticker,
+			Name:   stocks[i].Name,
+			Sector: stocks[i].Sector,
+			Rank:   stocks[i].Rank,
+		}
+	}
+
+	for i := range outputs {
+		snapshot, ok := stockMap[outputs[i].StockID]
+		if !ok {
+			s.logger.Warn(ctx, "stock not found for position", "stock_id", outputs[i].StockID)
+			continue
+		}
+		outputs[i].Stock = snapshot
+	}
 	return nil
 }
 

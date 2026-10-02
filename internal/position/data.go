@@ -14,20 +14,29 @@ type UpdatePositionInput struct {
 	AveragePrice int64  `json:"average_price" validate:"required,min=1"`
 }
 
+type StockSnapshotOutput struct {
+	ID     string `json:"id"`
+	Ticker string `json:"ticker"`
+	Name   string `json:"name"`
+	Sector string `json:"sector"`
+	Rank   int8   `json:"rank"`
+}
+
 type PositionOutput struct {
-	ID               string  `json:"id"`
-	WalletID         string  `json:"wallet_id"`
-	StockID          string  `json:"stock_id"`
-	Quantity         int64   `json:"quantity"`
-	AveragePrice     int64   `json:"average_price"`
-	CurrentPrice     int64   `json:"current_price"`
-	Invested         int64   `json:"invested"`
-	Balance          int64   `json:"balance"`
-	VariationValue   int64   `json:"variation_value"`
-	VariationPercent float64 `json:"variation_percent"`
-	PortfolioPercent float64 `json:"portfolio_percent"`
-	CreatedAt        string  `json:"created_at"`
-	UpdatedAt        string  `json:"updated_at"`
+	ID               string               `json:"id"`
+	WalletID         string               `json:"wallet_id"`
+	StockID          string               `json:"stock_id"`
+	Stock            *StockSnapshotOutput `json:"stock"`
+	Quantity         int64                `json:"quantity"`
+	AveragePrice     int64                `json:"average_price"`
+	CurrentPrice     int64                `json:"current_price"`
+	Invested         int64                `json:"invested"`
+	Balance          int64                `json:"balance"`
+	VariationValue   int64                `json:"variation_value"`
+	VariationPercent float64              `json:"variation_percent"`
+	PortfolioPercent float64              `json:"portfolio_percent"`
+	CreatedAt        string               `json:"created_at"`
+	UpdatedAt        string               `json:"updated_at"`
 }
 
 type PositionFilter struct {
