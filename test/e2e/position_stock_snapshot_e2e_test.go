@@ -104,3 +104,48 @@ func (s *E2ESuite) TestPosition_StockSnapshot_AllEndpoints() {
 	updateStock.Value("ticker").String().IsEqual("VALE3")
 	updateStock.Value("sector").String().IsEqual(vale3.sector)
 }
+
+func (s *E2ESuite) TestPosition_StockSnapshot_MissingStockReturnsNull() {
+	walletID := s.positionWalletID("Carteira Órfã")
+	petr4 := s.seededStockByTicker("PETR4")
+	s.positionInsertPrice(petr4.id, 7500)
+
+	positionID := s.positionCreate(walletID, petr4.id, 10, 1000)
+
+	orphanID := "11111111-2222-3333-4444-555555555555"
+	err := s.container.DB().
+		Exec("UPDATE positions SET stock_id = ? WHERE id = ?", orphanID, positionID).Error
+	s.Require().NoError(err)
+
+	findResp := s.expect.GET("/api/v1/wallets/{id}/positions/{positionId}").
+		WithPath("id", walletID).
+		WithPath("positionId", positionID).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Object()
+
+	findResp.Value("stock_id").String().IsEqual(orphanID)
+	findResp.Value("stock").IsNull()
+
+	listArr := s.expect.GET("/api/v1/wallets/{id}/positions").
+		WithPath("id", walletID).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Array()
+
+	listArr.Length().IsEqual(1)
+	listItem := listArr.First().Object()
+	listItem.Value("stock_id").String().IsEqual(orphanID)
+	listItem.Value("stock").IsNull()
+
+	updateResp := s.expect.PUT("/api/v1/wallets/{id}/positions/{positionId}").
+		WithPath("id", walletID).
+		WithPath("positionId", positionID).
+		WithJSON(map[string]interface{}{"quantity": 30, "average_price": 2000}).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Object()
+
+	updateResp.Value("stock_id").String().IsEqual(orphanID)
+	updateResp.Value("stock").IsNull()
+}
