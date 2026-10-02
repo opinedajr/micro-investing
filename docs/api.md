@@ -415,7 +415,7 @@ When a position is created, `ConsolidateByWallet` recalculates every position of
 
 If a current price is missing from `stocks_current_prices`, it is treated as `0` (balance = 0, variation = -100%) and a warning is logged.
 
-Every position payload (List, Find, Create, Update) embeds a read-time `stock` snapshot object with exactly five fields — `id`, `ticker`, `name`, `sector` and `rank` — hydrated from the stock catalog at request time. The flat `stock_id` field is preserved. If the stock record for a position is unavailable, `stock` is explicitly `null` and a warning is logged; the request still succeeds.
+Every position payload (List, Find, Create, Update) embeds a read-time `stock` snapshot object with exactly five fields — `id`, `ticker`, `name`, `sector` and `rank` — hydrated from the stock catalog at request time. The flat `stock_id` field is preserved. If the stock record for a position is unavailable, `stock` is explicitly `null` and a warning is logged; the request still succeeds and the position remains listed in List (orphan positions are not hidden).
 
 ```json
 "stock": {
