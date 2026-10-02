@@ -203,7 +203,8 @@ Commands:
 ### Dividends
 - **URL**: `GET /api/v1/wallets/:id/dividends?year=`
 - **URL**: `POST /api/v1/wallets/:id/dividends`
-- **Description**: Register and list the yearly total dividends received per wallet. Each record holds a `year` (between 1900 and the current year + 1) and an `amount` (integer cents, greater than zero). Only one dividend record per wallet and year is allowed — duplicating a year returns `409 Conflict` with `DIVIDEND_ALREADY_EXISTS`. Listing returns the wallet dividends ordered by `year DESC` as `{items: [{id, year, amount}]}`; the optional `year` filter returns an empty `items` list when there is no match. Validation failures return `400 Bad Request` with `VALIDATION_ERROR`.
+- **URL**: `PUT /api/v1/wallets/:id/dividends/:dividendId`
+- **Description**: Register, edit and list the yearly total dividends received per wallet. Each record holds a `year` (between 1900 and the current year + 1) and an `amount` (integer cents, greater than zero). Only one dividend record per wallet and year is allowed — duplicating a year returns `409 Conflict` with `DIVIDEND_ALREADY_EXISTS`. The update endpoint replaces `year` and `amount` (identified by the dividend UUID) with the same validation rules; an unknown id returns `404 Not Found` with `DIVIDEND_NOT_FOUND` and moving a record to a year already taken by another dividend of the same wallet returns `409 Conflict` with `DIVIDEND_ALREADY_EXISTS` (keeping the same year while changing the amount is allowed). There is no delete endpoint. Listing returns the wallet dividends ordered by `year DESC` as `{items: [{id, year, amount}]}`; the optional `year` filter returns an empty `items` list when there is no match. Validation failures return `400 Bad Request` with `VALIDATION_ERROR`.
 
 ### Stocks
 - **URL**: `GET /api/v1/stocks`
