@@ -48,6 +48,36 @@ func (s *E2ESuite) TestDashboard_Dividends_Success() {
 	third.Value("amount").Number().IsEqual(350000)
 }
 
+func (s *E2ESuite) TestDashboard_Dividends_NoYearWindowLimit() {
+	walletID := s.createWallet("Carteira Dividends Sem Janela")
+	currentYear := time.Now().Year()
+
+	s.createDividend(walletID, currentYear+1, 999000)
+	s.createDividend(walletID, currentYear-5, 50000)
+	s.createDividend(walletID, 1900, 1000)
+
+	items := s.expect.GET("/api/v1/wallets/{id}/dashboard/dividends").
+		WithPath("id", walletID).
+		Expect().
+		Status(http.StatusOK).
+		JSON().Object().Value("data").Object().Value("items").Array()
+
+	items.Length().IsEqual(3)
+
+	first := items.Element(0).Object()
+	first.Value("year").Number().IsEqual(1900)
+	first.Value("amount").Number().IsEqual(1000)
+
+	second := items.Element(1).Object()
+	second.Value("year").Number().IsEqual(float64(currentYear - 5))
+	second.Value("amount").Number().IsEqual(50000)
+
+	third := items.Element(2).Object()
+	third.Value("year").Number().IsEqual(float64(currentYear + 1))
+	third.Value("amount").Number().IsEqual(999000)
+	third.NotContainsKey("id")
+}
+
 func (s *E2ESuite) TestDashboard_Dividends_Empty() {
 	walletID := s.createWallet("Carteira Dividends Vazia")
 
