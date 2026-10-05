@@ -5,6 +5,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/opinedajr/micro-investing/internal/dividends"
 	"github.com/opinedajr/micro-investing/internal/patrimony"
 	"github.com/opinedajr/micro-investing/internal/position"
 	"github.com/opinedajr/micro-investing/internal/stock"
@@ -22,13 +23,15 @@ type dashboardService struct {
 	patrimonyRepository patrimony.PatrimonyRepository
 	positionRepository  position.Repository
 	stockRepository     stock.Repository
+	dividendRepository  dividends.Repository
 }
 
-func NewService(patrimonyRepository patrimony.PatrimonyRepository, positionRepository position.Repository, stockRepository stock.Repository) Service {
+func NewService(patrimonyRepository patrimony.PatrimonyRepository, positionRepository position.Repository, stockRepository stock.Repository, dividendRepository dividends.Repository) Service {
 	return &dashboardService{
 		patrimonyRepository: patrimonyRepository,
 		positionRepository:  positionRepository,
 		stockRepository:     stockRepository,
+		dividendRepository:  dividendRepository,
 	}
 }
 
@@ -253,7 +256,20 @@ func (s *dashboardService) Risk(ctx context.Context, walletID string) (*RiskOutp
 }
 
 func (s *dashboardService) Dividends(ctx context.Context, walletID string) (*DividendsOutput, error) {
-	return &DividendsOutput{Items: []DividendItem{}}, nil
+	records, err := s.dividendRepository.FindByFilter(ctx, dividends.DividendFilter{WalletID: walletID})
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]DividendItem, len(records))
+	for i, record := range records {
+		items[len(records)-1-i] = DividendItem{
+			Year:   record.Year,
+			Amount: record.Amount,
+		}
+	}
+
+	return &DividendsOutput{Items: items}, nil
 }
 
 func (s *dashboardService) Summary(ctx context.Context, walletID string) (*SummaryOutput, error) {
@@ -278,9 +294,29 @@ func (s *dashboardService) Summary(ctx context.Context, walletID string) (*Summa
 		return nil, err
 	}
 
+	yearlyDividends, err := s.latestNonFutureDividendAmount(ctx, walletID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &SummaryOutput{
 		CurrentPatrimony: currentPatrimony,
-		YearlyDividends:  0,
+		YearlyDividends:  yearlyDividends,
 		StocksInvested:   stocksInvested,
 	}, nil
+}
+
+func (s *dashboardService) latestNonFutureDividendAmount(ctx context.Context, walletID string) (int64, error) {
+	records, err := s.dividendRepository.FindByFilter(ctx, dividends.DividendFilter{WalletID: walletID})
+	if err != nil {
+		return 0, err
+	}
+
+	currentYear := time.Now().Year()
+	for _, record := range records {
+		if record.Year <= currentYear {
+			return record.Amount, nil
+		}
+	}
+	return 0, nil
 }
