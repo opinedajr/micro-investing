@@ -243,7 +243,7 @@ For detailed request/response schemas see `docs/api.md`.
 |---------|-------------|
 | `make run` | Build and run the API locally |
 | `make run-dev` | Run with hot-reload (reflex) |
-| `make build` | Build optimized binary (`bin/stats-central-api`) |
+| `make build` | Build optimized binary (`bin/micro-investing`) |
 | `make test` | Run tests |
 | `make test-v` | Run tests with verbose output |
 | `make test-cover` | Generate coverage report |
