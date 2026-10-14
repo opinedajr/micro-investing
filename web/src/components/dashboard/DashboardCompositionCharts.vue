@@ -2,12 +2,13 @@
 import { computed } from 'vue'
 import Chart from 'primevue/chart'
 
-import type { DashboardAllocation, DashboardRisk } from '@/lib/api'
+import type { DashboardAllocation, DashboardDividends, DashboardRisk } from '@/lib/api'
 import { formatCurrencyBRL } from '@/lib/utils'
 
 const props = defineProps<{
   allocation: DashboardAllocation | null
   risk: DashboardRisk | null
+  dividends: DashboardDividends | null
 }>()
 
 const ALLOCATION_LABELS: Record<string, string> = {
@@ -46,9 +47,16 @@ const RISK_LEGENDS: Record<number, string> = {
 
 const PERCENTAGE_LABEL_COLOR = '#ffffff'
 
+const DIVIDENDS_COLOR = '#0ea5e9'
+
 interface TooltipContext {
   label: string
   parsed: number
+}
+
+interface BarTooltipContext {
+  label: string
+  parsed: { y: number }
 }
 
 interface PercentageLabelsConfig {
@@ -190,6 +198,42 @@ const riskPercentageLabels = computed(() =>
   props.risk?.items.map((item) => percentageLabel(item.percentage)) ?? [],
 )
 
+const hasDividends = computed(() => (props.dividends?.items.length ?? 0) > 0)
+
+const dividendsChartData = computed(() => ({
+  labels: props.dividends?.items.map((item) => String(item.year)) ?? [],
+  datasets: [
+    {
+      label: 'Dividendos',
+      data: props.dividends?.items.map((item) => item.amount) ?? [],
+      backgroundColor: DIVIDENDS_COLOR,
+      borderRadius: 4,
+    },
+  ],
+}))
+
+const dividendsChartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false,
+    },
+    tooltip: {
+      callbacks: {
+        label(context: BarTooltipContext) {
+          return formatCurrencyBRL(context.parsed.y)
+        },
+      },
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+    },
+  },
+}))
+
 const riskChartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: true,
@@ -229,13 +273,15 @@ const riskChartOptions = computed(() => ({
       </div>
     </article>
 
-    <article class="composition__card composition__card--reserved" data-testid="dividends-placeholder">
+    <article class="composition__card" data-testid="dividends-chart">
       <h2 class="composition__title">Dividendos</h2>
-      <div class="composition__placeholder">
-        <i class="pi pi-chart-line composition__placeholder-icon" aria-hidden="true"></i>
-        <p class="composition__placeholder-title">Em breve</p>
-        <span class="composition__placeholder-hint">
-          O gerenciamento de dividendos ainda não está disponível.
+      <div v-if="hasDividends" class="composition__chart composition__chart--fill">
+        <Chart type="bar" :data="dividendsChartData" :options="dividendsChartOptions" />
+      </div>
+      <div v-else class="composition__empty" data-testid="dividends-empty">
+        <p class="composition__empty-title">Nenhum dividendo cadastrado</p>
+        <span class="composition__empty-hint">
+          Cadastre os dividendos anuais da carteira para visualizar o histórico.
         </span>
       </div>
     </article>
@@ -354,12 +400,12 @@ const riskChartOptions = computed(() => ({
   flex-shrink: 0;
 }
 
-.composition__card--reserved {
-  border-style: dashed;
-  border-color: var(--p-orange-300, #fdba74);
+.composition__chart--fill {
+  flex: 1;
+  min-height: 14rem;
 }
 
-.composition__placeholder {
+.composition__empty {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -368,21 +414,16 @@ const riskChartOptions = computed(() => ({
   gap: 0.25rem;
   padding: 1.5rem 1rem;
   border-radius: 0.5rem;
-  background: color-mix(in srgb, var(--p-orange-500, #f97316) 6%, transparent);
+  background: color-mix(in srgb, var(--p-sky-500, #0ea5e9) 6%, transparent);
 }
 
-.composition__placeholder-icon {
-  font-size: 1.5rem;
-  color: var(--p-orange-500, #f97316);
-}
-
-.composition__placeholder-title {
-  margin: 0.25rem 0 0;
+.composition__empty-title {
+  margin: 0;
   font-weight: 600;
-  color: var(--p-orange-600, #ea580c);
+  color: var(--p-text-color, #0f172a);
 }
 
-.composition__placeholder-hint {
+.composition__empty-hint {
   font-size: 0.8125rem;
   color: var(--p-text-muted-color, #64748b);
   text-align: center;

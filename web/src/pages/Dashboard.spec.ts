@@ -17,6 +17,7 @@ vi.mock('@/lib/api', () => ({
     summary: vi.fn(),
     allocation: vi.fn(),
     risk: vi.fn(),
+    dividends: vi.fn(),
     evolution: vi.fn(),
   },
 }))
@@ -46,6 +47,7 @@ describe('Dashboard', () => {
     })
     vi.mocked(dashboardApi.allocation).mockResolvedValue({ items: [], total: 0 })
     vi.mocked(dashboardApi.risk).mockResolvedValue({ items: [], total: 0 })
+    vi.mocked(dashboardApi.dividends).mockResolvedValue({ items: [] })
 
     const pinia = createPinia()
     const wrapper = mount(Dashboard, { global: { plugins: [pinia] } })
@@ -82,6 +84,7 @@ describe('Dashboard', () => {
     })
     vi.mocked(dashboardApi.allocation).mockResolvedValue({ items: [], total: 0 })
     vi.mocked(dashboardApi.risk).mockResolvedValue({ items: [], total: 0 })
+    vi.mocked(dashboardApi.dividends).mockResolvedValue({ items: [] })
 
     const pinia = createPinia()
     const wrapper = mount(Dashboard, { global: { plugins: [pinia] } })
@@ -122,6 +125,7 @@ describe('Dashboard', () => {
     })
     vi.mocked(dashboardApi.allocation).mockResolvedValue({ items: [], total: 0 })
     vi.mocked(dashboardApi.risk).mockResolvedValue({ items: [], total: 0 })
+    vi.mocked(dashboardApi.dividends).mockResolvedValue({ items: [] })
     vi.mocked(dashboardApi.evolution).mockResolvedValue(evolutionPayload)
 
     const pinia = createPinia()
@@ -145,6 +149,7 @@ describe('Dashboard', () => {
     })
     vi.mocked(dashboardApi.allocation).mockResolvedValue({ items: [], total: 0 })
     vi.mocked(dashboardApi.risk).mockResolvedValue({ items: [], total: 0 })
+    vi.mocked(dashboardApi.dividends).mockResolvedValue({ items: [] })
     vi.mocked(dashboardApi.evolution).mockResolvedValue(evolutionPayload)
 
     const pinia = createPinia()
@@ -169,6 +174,7 @@ describe('Dashboard', () => {
     })
     vi.mocked(dashboardApi.allocation).mockResolvedValue({ items: [], total: 0 })
     vi.mocked(dashboardApi.risk).mockResolvedValue({ items: [], total: 0 })
+    vi.mocked(dashboardApi.dividends).mockResolvedValue({ items: [] })
     vi.mocked(dashboardApi.evolution).mockResolvedValue(evolutionPayload)
 
     const pinia = createPinia()

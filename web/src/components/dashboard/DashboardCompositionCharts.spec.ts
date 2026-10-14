@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 
-import type { DashboardAllocation, DashboardRisk } from '@/lib/api'
+import type { DashboardAllocation, DashboardDividends, DashboardRisk } from '@/lib/api'
+import { formatCurrencyBRL } from '@/lib/utils'
 import DashboardCompositionCharts from './DashboardCompositionCharts.vue'
+
+const dividends: DashboardDividends = {
+  items: [
+    { year: 2023, amount: 120000 },
+    { year: 2024, amount: 180000 },
+    { year: 2025, amount: 260000 },
+  ],
+}
 
 const allocation: DashboardAllocation = {
   items: [
@@ -36,7 +45,7 @@ function stubChartData(wrapper: ReturnType<typeof mount>, containerTestId: strin
 describe('DashboardCompositionCharts', () => {
   it('renders the allocation doughnut chart with human readable labels and amounts', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk },
+      props: { allocation, risk, dividends },
     })
 
     const chart = stubChartData(wrapper, 'allocation-chart')
@@ -49,7 +58,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('draws percentage labels inside the allocation chart', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk },
+      props: { allocation, risk, dividends },
     })
 
     const chart = stubChartData(wrapper, 'allocation-chart')
@@ -60,7 +69,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('renders one risk slice per dashboard/risk item', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk },
+      props: { allocation, risk, dividends },
     })
 
     const chart = stubChartData(wrapper, 'risk-chart')
@@ -73,7 +82,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('draws percentage labels inside each risk slice', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk },
+      props: { allocation, risk, dividends },
     })
 
     const chart = stubChartData(wrapper, 'risk-chart')
@@ -84,7 +93,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('applies semantic colors per risk rank', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk },
+      props: { allocation, risk, dividends },
     })
 
     const chart = stubChartData(wrapper, 'risk-chart')
@@ -94,7 +103,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('renders the risk chart as a half-circle gauge without the native legend', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk },
+      props: { allocation, risk, dividends },
     })
 
     const chart = stubChartData(wrapper, 'risk-chart')
@@ -109,6 +118,7 @@ describe('DashboardCompositionCharts', () => {
     const wrapper = mount(DashboardCompositionCharts, {
       props: {
         allocation,
+        dividends,
         risk: {
           items: [
             { rank: 2, amount: 3000000, percentage: 40 },
@@ -129,7 +139,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('renders the custom risk legend below the gauge with label and rank', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk },
+      props: { allocation, risk, dividends },
     })
 
     const riskCard = wrapper.find('[data-testid="risk-chart"]')
@@ -149,7 +159,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('renders an empty risk chart when risk data is not loaded', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk: null },
+      props: { allocation, risk: null, dividends },
     })
 
     const chart = stubChartData(wrapper, 'risk-chart')
@@ -163,7 +173,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('renders an empty risk chart when the wallet has no risk items', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk: { items: [], total: 0 } },
+      props: { allocation, risk: { items: [], total: 0 }, dividends },
     })
 
     const chart = stubChartData(wrapper, 'risk-chart')
@@ -177,7 +187,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('renders an empty risk chart when the wallet has no risk items', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk: { items: [], total: 0 } },
+      props: { allocation, risk: { items: [], total: 0 }, dividends },
     })
 
     const chart = stubChartData(wrapper, 'risk-chart')
@@ -191,7 +201,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('renders empty allocation datasets when allocation data is not loaded', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation: null, risk },
+      props: { allocation: null, risk, dividends },
     })
 
     const chart = stubChartData(wrapper, 'allocation-chart')
@@ -203,7 +213,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('renders the dividends card between allocation and risk cards', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk },
+      props: { allocation, risk, dividends },
     })
 
     const titles = wrapper.findAll('.composition__card .composition__title')
@@ -215,21 +225,71 @@ describe('DashboardCompositionCharts', () => {
     ])
   })
 
-  it('renders the dividends area as a reserved empty state', () => {
+  it('renders the dividends bar chart with one bar per year and yearly amounts', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk },
+      props: { allocation, risk, dividends },
     })
 
-    const dividends = wrapper.find('[data-testid="dividends-placeholder"]')
+    const chart = stubChartData(wrapper, 'dividends-chart')
 
-    expect(dividends.exists()).toBe(true)
-    expect(dividends.text()).toContain('Dividendos')
-    expect(dividends.text()).toContain('Em breve')
+    expect(chart.exists).toBe(true)
+    expect(chart.type).toBe('bar')
+    expect(chart.data.labels).toEqual(['2023', '2024', '2025'])
+    expect(chart.data.datasets[0].data).toEqual([120000, 180000, 260000])
+  })
+
+  it('renders dividends bars with a single color from the dashboard palette', () => {
+    const wrapper = mount(DashboardCompositionCharts, {
+      props: { allocation, risk, dividends },
+    })
+
+    const chart = stubChartData(wrapper, 'dividends-chart')
+
+    expect(chart.data.datasets[0].backgroundColor).toBe('#0ea5e9')
+  })
+
+  it('formats the dividends tooltip values as BRL currency', () => {
+    const wrapper = mount(DashboardCompositionCharts, {
+      props: { allocation, risk, dividends },
+    })
+
+    const chart = stubChartData(wrapper, 'dividends-chart')
+
+    const tooltipSource = chart.options.plugins.tooltip.callbacks.label.__function
+    const tooltipLabel = tooltipSource.replace(/__vite_ssr_import_\d+__/g, '__module__')
+    const labelFn = new Function('__module__', `return ({ ${tooltipLabel} }).label`)({
+      formatCurrencyBRL,
+    })
+    expect(labelFn({ label: '2024', parsed: { y: 180000 } })).toContain('R$ 1.800,00')
+  })
+
+  it('renders an empty state instead of the chart when no dividends are registered', () => {
+    const wrapper = mount(DashboardCompositionCharts, {
+      props: { allocation, risk, dividends: { items: [] } },
+    })
+
+    const card = wrapper.find('[data-testid="dividends-chart"]')
+
+    expect(card.exists()).toBe(true)
+    expect(card.text()).toContain('Dividendos')
+    expect(card.text()).toContain('Nenhum dividendo cadastrado')
+    expect(card.find('[data-testid="chart-stub"]').exists()).toBe(false)
+  })
+
+  it('renders an empty state while dividends data is not loaded', () => {
+    const wrapper = mount(DashboardCompositionCharts, {
+      props: { allocation, risk, dividends: null },
+    })
+
+    const card = wrapper.find('[data-testid="dividends-chart"]')
+
+    expect(card.text()).toContain('Nenhum dividendo cadastrado')
+    expect(card.find('[data-testid="chart-stub"]').exists()).toBe(false)
   })
 
   it('removes the static risk profile text from the risk card', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk },
+      props: { allocation, risk, dividends },
     })
 
     expect(wrapper.text()).not.toContain('Perfil de risco')
@@ -245,6 +305,7 @@ describe('DashboardCompositionCharts', () => {
     const wrapper = mount(DashboardCompositionCharts, {
       props: {
         allocation,
+        dividends,
         risk: { items: [{ rank, amount: 1000000, percentage: 100 }], total: 1000000 },
       },
     })
@@ -258,6 +319,7 @@ describe('DashboardCompositionCharts', () => {
     const wrapper = mount(DashboardCompositionCharts, {
       props: {
         allocation,
+        dividends,
         risk: { items: [{ rank: 9, amount: 500000, percentage: 50 }], total: 500000 },
       },
     })
@@ -270,7 +332,7 @@ describe('DashboardCompositionCharts', () => {
 
   it('standardizes both charts to the same responsive size', () => {
     const wrapper = mount(DashboardCompositionCharts, {
-      props: { allocation, risk },
+      props: { allocation, risk, dividends },
     })
 
     const allocationChart = stubChartData(wrapper, 'allocation-chart')
