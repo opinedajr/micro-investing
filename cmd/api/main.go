@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/opinedajr/micro-investing/internal/dashboard"
 	"github.com/opinedajr/micro-investing/internal/di"
+	"github.com/opinedajr/micro-investing/internal/dividends"
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
 	"github.com/opinedajr/micro-investing/internal/patrimony"
 	"github.com/opinedajr/micro-investing/internal/position"
@@ -26,6 +27,7 @@ func main() {
 	stock.RegisterRoutes(v1, container.StockHandler())
 	position.RegisterRoutes(v1, container.PositionHandler(), container.WalletService())
 	dashboard.RegisterRoutes(v1, container.DashboardHandler(), container.WalletService())
+	dividends.RegisterRoutes(v1, container.DividendHandler(), container.WalletService())
 	webui.RegisterRoutes(r)
 
 	log.Fatal(r.Run(":" + port))

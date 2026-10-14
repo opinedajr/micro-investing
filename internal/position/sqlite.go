@@ -50,7 +50,7 @@ func (r *SQLiteRepository) FindByFilter(ctx context.Context, filter PositionFilt
 	query := r.txFromContext(ctx).
 		Table("positions").
 		Select("positions.*").
-		Joins("JOIN stocks ON stocks.id = positions.stock_id").
+		Joins("LEFT JOIN stocks ON stocks.id = positions.stock_id").
 		Where("positions.wallet_id = ?", filter.WalletID)
 
 	if filter.Ticker != "" {

@@ -10,6 +10,7 @@ vi.mock('primevue/chart', async () => {
         type: { type: String, required: true },
         data: { type: Object, default: () => ({}) },
         options: { type: Object, default: () => ({}) },
+        plugins: { type: Array, default: () => [] },
       },
       setup(props) {
         return () =>
@@ -18,7 +19,10 @@ vi.mock('primevue/chart', async () => {
             'data-testid': 'chart-stub',
             'data-chart-type': props.type,
             'data-chart-data': JSON.stringify(props.data),
-            'data-chart-options': JSON.stringify(props.options),
+            'data-chart-options': JSON.stringify(props.options, (_key, value) =>
+              typeof value === 'function' ? { __function: value.toString() } : value,
+            ),
+            'data-chart-plugins': JSON.stringify(props.plugins),
           })
       },
     }),

@@ -9,6 +9,7 @@ vi.mock('@/lib/api', () => ({
     summary: vi.fn(),
     allocation: vi.fn(),
     risk: vi.fn(),
+    dividends: vi.fn(),
     evolution: vi.fn(),
   },
 }))
@@ -29,6 +30,13 @@ const riskPayload = {
   total: 3050,
 }
 
+const dividendsPayload = {
+  items: [
+    { year: 2024, amount: 150000 },
+    { year: 2025, amount: 320000 },
+  ],
+}
+
 const evolutionPayload = {
   total: [{ year: 2026, month: 9, amount: 1050 }],
   by_category: {
@@ -44,10 +52,11 @@ describe('useDashboardStore', () => {
     vi.clearAllMocks()
   })
 
-  it('fetchCurrentState maps summary, allocation and risk payloads into their states', async () => {
+  it('fetchCurrentState maps summary, allocation, risk and dividends payloads into their states', async () => {
     vi.mocked(dashboardApi.summary).mockResolvedValue(summaryPayload)
     vi.mocked(dashboardApi.allocation).mockResolvedValue(allocationPayload)
     vi.mocked(dashboardApi.risk).mockResolvedValue(riskPayload)
+    vi.mocked(dashboardApi.dividends).mockResolvedValue(dividendsPayload)
 
     const store = useDashboardStore()
 
@@ -56,9 +65,11 @@ describe('useDashboardStore', () => {
     expect(store.summary).toEqual(summaryPayload)
     expect(store.allocation).toEqual(allocationPayload)
     expect(store.risk).toEqual(riskPayload)
+    expect(store.dividends).toEqual(dividendsPayload)
     expect(dashboardApi.summary).toHaveBeenCalledWith('wallet-1')
     expect(dashboardApi.allocation).toHaveBeenCalledWith('wallet-1')
     expect(dashboardApi.risk).toHaveBeenCalledWith('wallet-1')
+    expect(dashboardApi.dividends).toHaveBeenCalledWith('wallet-1')
     expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
   })
@@ -67,6 +78,7 @@ describe('useDashboardStore', () => {
     vi.mocked(dashboardApi.summary).mockRejectedValue(new Error('Request failed'))
     vi.mocked(dashboardApi.allocation).mockResolvedValue(allocationPayload)
     vi.mocked(dashboardApi.risk).mockResolvedValue(riskPayload)
+    vi.mocked(dashboardApi.dividends).mockResolvedValue(dividendsPayload)
 
     const store = useDashboardStore()
 
@@ -75,6 +87,7 @@ describe('useDashboardStore', () => {
     expect(store.summary).toBeNull()
     expect(store.allocation).toBeNull()
     expect(store.risk).toBeNull()
+    expect(store.dividends).toBeNull()
     expect(store.error).toBe('Request failed')
     expect(store.loading).toBe(false)
   })

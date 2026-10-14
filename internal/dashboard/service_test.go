@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/opinedajr/micro-investing/internal/dividends"
 	"github.com/opinedajr/micro-investing/internal/patrimony"
 	"github.com/opinedajr/micro-investing/internal/position"
 	"github.com/opinedajr/micro-investing/internal/stock"
@@ -130,6 +131,33 @@ func (m *mockStockRepository) Seed(ctx context.Context, stocks []stock.Stock, fo
 	return nil
 }
 
+type mockDividendRepository struct {
+	findByFilterFunc func(ctx context.Context, filter dividends.DividendFilter) ([]dividends.Dividend, error)
+}
+
+func (m *mockDividendRepository) Create(ctx context.Context, dividend *dividends.Dividend) error {
+	return nil
+}
+
+func (m *mockDividendRepository) FindByFilter(ctx context.Context, filter dividends.DividendFilter) ([]dividends.Dividend, error) {
+	if m.findByFilterFunc != nil {
+		return m.findByFilterFunc(ctx, filter)
+	}
+	return nil, nil
+}
+
+func (m *mockDividendRepository) FindByWalletYear(ctx context.Context, walletID string, year int) (*dividends.Dividend, error) {
+	return nil, nil
+}
+
+func (m *mockDividendRepository) FindByID(ctx context.Context, walletID string, id string) (*dividends.Dividend, error) {
+	return nil, nil
+}
+
+func (m *mockDividendRepository) Update(ctx context.Context, dividend *dividends.Dividend) error {
+	return nil
+}
+
 func TestService_Summary(t *testing.T) {
 	t.Run("success - returns aggregated summary", func(t *testing.T) {
 		patrimonyRepo := &mockPatrimonyRepository{
@@ -151,7 +179,7 @@ func TestService_Summary(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, positionRepo, &mockStockRepository{})
+		service := NewService(patrimonyRepo, positionRepo, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Summary(context.Background(), "wallet-id")
 
 		assert.NoError(t, err)
@@ -175,7 +203,7 @@ func TestService_Summary(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, positionRepo, &mockStockRepository{})
+		service := NewService(patrimonyRepo, positionRepo, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Summary(context.Background(), "wallet-id")
 
 		assert.NoError(t, err)
@@ -192,7 +220,7 @@ func TestService_Summary(t *testing.T) {
 		}
 		positionRepo := &mockPositionRepository{}
 
-		service := NewService(patrimonyRepo, positionRepo, &mockStockRepository{})
+		service := NewService(patrimonyRepo, positionRepo, &mockStockRepository{}, &mockDividendRepository{})
 		_, err := service.Summary(context.Background(), "wallet-id")
 
 		assert.Error(t, err)
@@ -209,7 +237,7 @@ func TestService_Summary(t *testing.T) {
 		}
 		positionRepo := &mockPositionRepository{}
 
-		service := NewService(patrimonyRepo, positionRepo, &mockStockRepository{})
+		service := NewService(patrimonyRepo, positionRepo, &mockStockRepository{}, &mockDividendRepository{})
 		_, err := service.Summary(context.Background(), "wallet-id")
 
 		assert.Error(t, err)
@@ -230,7 +258,74 @@ func TestService_Summary(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, positionRepo, &mockStockRepository{})
+		service := NewService(patrimonyRepo, positionRepo, &mockStockRepository{}, &mockDividendRepository{})
+		_, err := service.Summary(context.Background(), "wallet-id")
+
+		assert.Error(t, err)
+	})
+
+	t.Run("success - yearly dividends uses latest year not in the future", func(t *testing.T) {
+		currentYear := time.Now().Year()
+		dividendRepo := &mockDividendRepository{
+			findByFilterFunc: func(ctx context.Context, filter dividends.DividendFilter) ([]dividends.Dividend, error) {
+				return []dividends.Dividend{
+					{WalletID: "wallet-id", Year: currentYear + 1, Amount: 999999},
+					{WalletID: "wallet-id", Year: currentYear, Amount: 350000},
+					{WalletID: "wallet-id", Year: currentYear - 2, Amount: 100000},
+				}, nil
+			},
+		}
+
+		service := NewService(&mockPatrimonyRepository{}, &mockPositionRepository{}, &mockStockRepository{}, dividendRepo)
+		output, err := service.Summary(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(350000), output.YearlyDividends)
+	})
+
+	t.Run("success - yearly dividends falls back to previous year when current year missing", func(t *testing.T) {
+		currentYear := time.Now().Year()
+		dividendRepo := &mockDividendRepository{
+			findByFilterFunc: func(ctx context.Context, filter dividends.DividendFilter) ([]dividends.Dividend, error) {
+				return []dividends.Dividend{
+					{WalletID: "wallet-id", Year: currentYear + 1, Amount: 999999},
+					{WalletID: "wallet-id", Year: currentYear - 1, Amount: 250000},
+				}, nil
+			},
+		}
+
+		service := NewService(&mockPatrimonyRepository{}, &mockPositionRepository{}, &mockStockRepository{}, dividendRepo)
+		output, err := service.Summary(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(250000), output.YearlyDividends)
+	})
+
+	t.Run("success - yearly dividends is zero when only future years exist", func(t *testing.T) {
+		currentYear := time.Now().Year()
+		dividendRepo := &mockDividendRepository{
+			findByFilterFunc: func(ctx context.Context, filter dividends.DividendFilter) ([]dividends.Dividend, error) {
+				return []dividends.Dividend{
+					{WalletID: "wallet-id", Year: currentYear + 1, Amount: 500000},
+				}, nil
+			},
+		}
+
+		service := NewService(&mockPatrimonyRepository{}, &mockPositionRepository{}, &mockStockRepository{}, dividendRepo)
+		output, err := service.Summary(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), output.YearlyDividends)
+	})
+
+	t.Run("error - returns error when finding dividends fails", func(t *testing.T) {
+		dividendRepo := &mockDividendRepository{
+			findByFilterFunc: func(ctx context.Context, filter dividends.DividendFilter) ([]dividends.Dividend, error) {
+				return nil, errors.New("database error")
+			},
+		}
+
+		service := NewService(&mockPatrimonyRepository{}, &mockPositionRepository{}, &mockStockRepository{}, dividendRepo)
 		_, err := service.Summary(context.Background(), "wallet-id")
 
 		assert.Error(t, err)
@@ -253,21 +348,51 @@ func TestService_Allocation(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Allocation(context.Background(), "wallet-id")
 
 		assert.NoError(t, err)
 		assert.Equal(t, int64(1500000), output.Total)
 		assert.Len(t, output.Items, 4)
 
-		expectedPercentages := map[string]float64{
-			"stocks":            33.33,
-			"fixed_income":      33.33,
-			"emergency_reserve": 16.67,
-			"liquid_cash":       16.67,
+		expectedPercentages := map[string]int{
+			"stocks":            33,
+			"fixed_income":      33,
+			"emergency_reserve": 17,
+			"liquid_cash":       17,
 		}
 		for _, item := range output.Items {
-			assert.InDelta(t, expectedPercentages[item.Type], item.Percentage, 0.01)
+			assert.Equal(t, expectedPercentages[item.Type], item.Percentage)
+		}
+	})
+
+	t.Run("success - rounds percentages to integer rounding halves away from zero", func(t *testing.T) {
+		patrimonyRepo := &mockPatrimonyRepository{
+			findLatestMonthByWalletFunc: func(ctx context.Context, walletID string) (int, int, error) {
+				return 2026, 3, nil
+			},
+			sumByWalletYearMonthFunc: func(ctx context.Context, walletID string, year int, month int) ([]patrimony.TypeAmount, error) {
+				return []patrimony.TypeAmount{
+					{Type: patrimony.TypeStocks, Amount: 200000},
+					{Type: patrimony.TypeFixedIncome, Amount: 150000},
+					{Type: patrimony.TypeEmergencyReserve, Amount: 50000},
+				}, nil
+			},
+		}
+
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
+		output, err := service.Allocation(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(400000), output.Total)
+
+		expectedPercentages := map[string]int{
+			"stocks":            50,
+			"fixed_income":      38,
+			"emergency_reserve": 13,
+		}
+		for _, item := range output.Items {
+			assert.Equal(t, expectedPercentages[item.Type], item.Percentage)
 		}
 	})
 
@@ -285,7 +410,7 @@ func TestService_Allocation(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Allocation(context.Background(), "wallet-id")
 
 		assert.NoError(t, err)
@@ -293,7 +418,7 @@ func TestService_Allocation(t *testing.T) {
 		assert.Len(t, output.Items, 1)
 		assert.Equal(t, "stocks", output.Items[0].Type)
 		assert.Equal(t, int64(100000), output.Items[0].Amount)
-		assert.InDelta(t, 100.0, output.Items[0].Percentage, 0.01)
+		assert.Equal(t, 100, output.Items[0].Percentage)
 	})
 
 	t.Run("success - returns empty when wallet has no patrimony records", func(t *testing.T) {
@@ -303,7 +428,7 @@ func TestService_Allocation(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Allocation(context.Background(), "wallet-id")
 
 		assert.NoError(t, err)
@@ -318,7 +443,7 @@ func TestService_Allocation(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		_, err := service.Allocation(context.Background(), "wallet-id")
 
 		assert.Error(t, err)
@@ -334,7 +459,7 @@ func TestService_Allocation(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		_, err := service.Allocation(context.Background(), "wallet-id")
 
 		assert.Error(t, err)
@@ -360,19 +485,55 @@ func TestService_Risk(t *testing.T) {
 			},
 		}
 
-		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo)
+		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo, &mockDividendRepository{})
 		output, err := service.Risk(context.Background(), "wallet-id")
 
 		assert.NoError(t, err)
 		assert.Equal(t, int64(500000), output.Total)
 		assert.Len(t, output.Items, 2)
 
-		expected := map[int8]float64{
-			3: 60.0,
-			4: 40.0,
+		expected := map[int8]int{
+			3: 60,
+			4: 40,
 		}
 		for _, item := range output.Items {
-			assert.InDelta(t, expected[item.Rank], item.Percentage, 0.01)
+			assert.Equal(t, expected[item.Rank], item.Percentage)
+		}
+	})
+
+	t.Run("success - rounds percentages to integer rounding halves away from zero", func(t *testing.T) {
+		positionRepo := &mockPositionRepository{
+			findByFilterFunc: func(ctx context.Context, filter position.PositionFilter) ([]position.Position, error) {
+				return []position.Position{
+					{StockID: "stock-1", Invested: 200000},
+					{StockID: "stock-2", Invested: 150000},
+					{StockID: "stock-3", Invested: 50000},
+				}, nil
+			},
+		}
+		stockRepo := &mockStockRepository{
+			findByIDsFunc: func(ctx context.Context, ids []string) ([]stock.Stock, error) {
+				return []stock.Stock{
+					{ID: "stock-1", Rank: 5},
+					{ID: "stock-2", Rank: 4},
+					{ID: "stock-3", Rank: 3},
+				}, nil
+			},
+		}
+
+		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo, &mockDividendRepository{})
+		output, err := service.Risk(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(400000), output.Total)
+
+		expected := map[int8]int{
+			5: 50,
+			4: 38,
+			3: 13,
+		}
+		for _, item := range output.Items {
+			assert.Equal(t, expected[item.Rank], item.Percentage)
 		}
 	})
 
@@ -384,7 +545,7 @@ func TestService_Risk(t *testing.T) {
 		}
 		stockRepo := &mockStockRepository{}
 
-		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo)
+		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo, &mockDividendRepository{})
 		output, err := service.Risk(context.Background(), "wallet-id")
 
 		assert.NoError(t, err)
@@ -400,7 +561,7 @@ func TestService_Risk(t *testing.T) {
 		}
 		stockRepo := &mockStockRepository{}
 
-		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo)
+		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo, &mockDividendRepository{})
 		_, err := service.Risk(context.Background(), "wallet-id")
 
 		assert.Error(t, err)
@@ -420,7 +581,7 @@ func TestService_Risk(t *testing.T) {
 			},
 		}
 
-		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo)
+		service := NewService(&mockPatrimonyRepository{}, positionRepo, stockRepo, &mockDividendRepository{})
 		_, err := service.Risk(context.Background(), "wallet-id")
 
 		assert.Error(t, err)
@@ -547,7 +708,7 @@ func TestService_Evolution(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 2})
 
 		assert.NoError(t, err)
@@ -590,7 +751,7 @@ func TestService_Evolution(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 2})
 
 		assert.NoError(t, err)
@@ -625,7 +786,7 @@ func TestService_Evolution(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 2})
 
 		assert.NoError(t, err)
@@ -653,7 +814,7 @@ func TestService_Evolution(t *testing.T) {
 	t.Run("error - returns error for invalid quarter", func(t *testing.T) {
 		patrimonyRepo := &mockPatrimonyRepository{}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		_, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 5})
 
 		assert.Error(t, err)
@@ -675,7 +836,7 @@ func TestService_Evolution(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 2})
 
 		assert.NoError(t, err)
@@ -695,7 +856,7 @@ func TestService_Evolution(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{})
 
 		assert.NoError(t, err)
@@ -710,7 +871,7 @@ func TestService_Evolution(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026, Quarter: 2})
 
 		assert.NoError(t, err)
@@ -727,7 +888,7 @@ func TestService_Evolution(t *testing.T) {
 			},
 		}
 
-		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{})
+		service := NewService(patrimonyRepo, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		_, err := service.Evolution(context.Background(), "wallet-id", EvolutionInput{Year: 2026})
 
 		assert.Error(t, err)
@@ -735,13 +896,51 @@ func TestService_Evolution(t *testing.T) {
 }
 
 func TestService_Dividends(t *testing.T) {
-	t.Run("success - returns static empty dividends list", func(t *testing.T) {
-		service := NewService(&mockPatrimonyRepository{}, &mockPositionRepository{}, &mockStockRepository{})
+	t.Run("success - returns all years ordered ascending without id", func(t *testing.T) {
+		dividendRepo := &mockDividendRepository{
+			findByFilterFunc: func(ctx context.Context, filter dividends.DividendFilter) ([]dividends.Dividend, error) {
+				assert.Equal(t, "wallet-id", filter.WalletID)
+				return []dividends.Dividend{
+					{ID: "div-3", WalletID: "wallet-id", Year: 2026, Amount: 350000},
+					{ID: "div-2", WalletID: "wallet-id", Year: 2024, Amount: 150000},
+					{ID: "div-1", WalletID: "wallet-id", Year: 2023, Amount: 100000},
+				}, nil
+			},
+		}
+
+		service := NewService(&mockPatrimonyRepository{}, &mockPositionRepository{}, &mockStockRepository{}, dividendRepo)
+		output, err := service.Dividends(context.Background(), "wallet-id")
+
+		assert.NoError(t, err)
+		assert.Len(t, output.Items, 3)
+		assert.Equal(t, 2023, output.Items[0].Year)
+		assert.Equal(t, int64(100000), output.Items[0].Amount)
+		assert.Equal(t, 2024, output.Items[1].Year)
+		assert.Equal(t, int64(150000), output.Items[1].Amount)
+		assert.Equal(t, 2026, output.Items[2].Year)
+		assert.Equal(t, int64(350000), output.Items[2].Amount)
+	})
+
+	t.Run("success - returns empty items when wallet has no dividends", func(t *testing.T) {
+		service := NewService(&mockPatrimonyRepository{}, &mockPositionRepository{}, &mockStockRepository{}, &mockDividendRepository{})
 		output, err := service.Dividends(context.Background(), "wallet-id")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, output)
 		assert.NotNil(t, output.Items)
 		assert.Len(t, output.Items, 0)
+	})
+
+	t.Run("error - returns error when finding dividends fails", func(t *testing.T) {
+		dividendRepo := &mockDividendRepository{
+			findByFilterFunc: func(ctx context.Context, filter dividends.DividendFilter) ([]dividends.Dividend, error) {
+				return nil, errors.New("database error")
+			},
+		}
+
+		service := NewService(&mockPatrimonyRepository{}, &mockPositionRepository{}, &mockStockRepository{}, dividendRepo)
+		_, err := service.Dividends(context.Background(), "wallet-id")
+
+		assert.Error(t, err)
 	})
 }

@@ -143,6 +143,8 @@ Common error codes:
 - `PATRIMONY_ALREADY_EXISTS`: duplicate patrimony for the same wallet, year, month and type
 - `PATRIMONY_NOT_FOUND`: patrimony id not found or does not belong to the wallet
 - `ASSET_NOT_FOUND`: asset id not found
+- `DIVIDEND_ALREADY_EXISTS`: duplicate dividend for the same wallet and year
+- `DIVIDEND_NOT_FOUND`: dividend not found for the given wallet and id
 - `WALLET_NOT_FOUND`: wallet does not exist (returned by the wallet validation middleware)
 - `INTERNAL_ERROR`: unexpected server error
 
@@ -248,6 +250,88 @@ Errors: `422 Unprocessable Entity` (invalid date format, or `start_date > end_da
 
 ---
 
+## Dividends
+
+Yearly total dividends received per wallet. All monetary values are integer cents (e.g. `150000` means R$ 1.500,00). The `year` must be between 1900 and the current year + 1 and the `amount` must be greater than zero. Only one dividend record is allowed per wallet and year. There is no delete endpoint.
+
+### Create Dividend
+- **URL**: `POST /api/v1/wallets/:id/dividends`
+- **Request Body**:
+
+```json
+{
+  "year": 2025,
+  "amount": 150000
+}
+```
+
+- **Response**: `201 Created`
+
+```json
+{
+  "data": {
+    "id": "dividend-id",
+    "year": 2025,
+    "amount": 150000
+  }
+}
+```
+
+Errors: `400 Bad Request` (validation), `409 Conflict` (`DIVIDEND_ALREADY_EXISTS`), `404 Not Found` (`WALLET_NOT_FOUND`), `500 Internal Server Error`.
+
+### Update Dividend
+- **URL**: `PUT /api/v1/wallets/:id/dividends/:dividendId`
+- **Request Body**:
+
+```json
+{
+  "year": 2026,
+  "amount": 175000
+}
+```
+
+- **Response**: `200 OK`
+
+```json
+{
+  "data": {
+    "id": "dividend-id",
+    "year": 2026,
+    "amount": 175000
+  }
+}
+```
+
+Both `year` and `amount` are replaced with the same validation rules as creation. Keeping the same year (only changing the amount) is allowed.
+
+Errors: `400 Bad Request` (validation), `404 Not Found` (`DIVIDEND_NOT_FOUND` or `WALLET_NOT_FOUND`), `409 Conflict` (`DIVIDEND_ALREADY_EXISTS`), `500 Internal Server Error`.
+
+### List Dividends
+- **URL**: `GET /api/v1/wallets/:id/dividends?year=`
+- **Query Parameters** (optional):
+  - `year`: exact year filter (e.g. `2025`)
+- **Response**: `200 OK` with dividends ordered by `year DESC`
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "id": "dividend-id",
+        "year": 2025,
+        "amount": 150000
+      }
+    ]
+  }
+}
+```
+
+A `year` filter without matches returns `200 OK` with `items: []`.
+
+Errors: `400 Bad Request` (invalid `year` format), `404 Not Found` (`WALLET_NOT_FOUND`), `500 Internal Server Error`.
+
+---
+
 ## Stocks
 
 Read-only catalog of B3 stocks. The catalog is populated and updated exclusively via the `make seed-stock` CLI. It is not mutable through the REST API.
@@ -307,6 +391,14 @@ Error response:
 - **Description**: Idempotently seeds ~29 B3 blue-chip stocks. Repeating the command does not duplicate rows or overwrite manual edits.
 - **Force overwrite**: `make seed-stock ARGS="--force"`
 
+### Sync Current Prices
+- **Command**: `make sync-prices` (binary: `go build ./cmd/quotation`)
+- **Description**: Fetches current prices for the registered stocks from the Brapi API and upserts them into the `stocks_current_prices` cache in a single transaction, then re-consolidates the positions of every wallet of the default user so balance/variation and the dashboard reflect the new prices immediately. A ticker absent from the API response is skipped and keeps its old price; a failed batch does not abort the remaining batches.
+- **Ticker filter**: `make sync-prices ARGS="-tickers=PETR4,VALE3"` (default: all registered stocks; unknown tickers fail fast with an error)
+- **Exit codes**: `0` on success or partial success (skipped/failed tickers summarized); `1` on total failure, including a missing `BRAPI_API_KEY` (validated at client construction, before any sync work).
+- **Scheduling**: designed for crontab, e.g. `0 18 * * 1-5 make -C /path/to/micro-investing sync-prices >> /var/log/quotation.log 2>&1`
+- **Configuration**: requires `BRAPI_API_KEY`; optional `BRAPI_BASE_URL` (default `https://brapi.dev`), `BRAPI_TIMEOUT` (default `15s`) and `BRAPI_BATCH_SIZE` (default `1`). See `.env.sample`.
+
 ---
 
 ## Positions
@@ -323,6 +415,18 @@ When a position is created, `ConsolidateByWallet` recalculates every position of
 
 If a current price is missing from `stocks_current_prices`, it is treated as `0` (balance = 0, variation = -100%) and a warning is logged.
 
+Every position payload (List, Find, Create, Update) embeds a read-time `stock` snapshot object with exactly five fields — `id`, `ticker`, `name`, `sector` and `rank` — hydrated from the stock catalog at request time. The flat `stock_id` field is preserved. If the stock record for a position is unavailable, `stock` is explicitly `null` and a warning is logged; the request still succeeds and the position remains listed in List (orphan positions are not hidden).
+
+```json
+"stock": {
+  "id": "stock-uuid",
+  "ticker": "PETR4",
+  "name": "Petrobras PN",
+  "sector": "Petróleo, Gás e Biocombustíveis",
+  "rank": 10
+}
+```
+
 ### List Positions
 - **URL**: `GET /api/v1/wallets/:id/positions?ticker=&sort=`
 - **Query Parameters** (all optional):
@@ -337,6 +441,13 @@ If a current price is missing from `stocks_current_prices`, it is treated as `0`
       "id": "position-id",
       "wallet_id": "wallet-id",
       "stock_id": "stock-uuid",
+      "stock": {
+        "id": "stock-uuid",
+        "ticker": "PETR4",
+        "name": "Petrobras PN",
+        "sector": "Petróleo, Gás e Biocombustíveis",
+        "rank": 10
+      },
       "quantity": 100,
       "average_price": 5000,
       "current_price": 7500,
@@ -360,7 +471,7 @@ An empty wallet returns `200 OK` with `{"data":[]}`.
 
 ### Find Position
 - **URL**: `GET /api/v1/wallets/:id/positions/:positionId`
-- **Response**: `200 OK` with the same position payload as List, or `404 Not Found` (`POSITION_NOT_FOUND`) if the position does not exist or does not belong to the wallet in the path.
+- **Response**: `200 OK` with the same position payload as List (including the embedded `stock` snapshot, `null` when the stock record is unavailable), or `404 Not Found` (`POSITION_NOT_FOUND`) if the position does not exist or does not belong to the wallet in the path.
 
 - **Errors**:
   - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
@@ -387,6 +498,13 @@ An empty wallet returns `200 OK` with `{"data":[]}`.
     "id": "position-id",
     "wallet_id": "wallet-id",
     "stock_id": "stock-uuid",
+    "stock": {
+      "id": "stock-uuid",
+      "ticker": "PETR4",
+      "name": "Petrobras PN",
+      "sector": "Petróleo, Gás e Biocombustíveis",
+      "rank": 10
+    },
     "quantity": 100,
     "average_price": 5000,
     "current_price": 7500,
@@ -427,6 +545,13 @@ An empty wallet returns `200 OK` with `{"data":[]}`.
     "id": "position-id",
     "wallet_id": "wallet-id",
     "stock_id": "stock-uuid",
+    "stock": {
+      "id": "stock-uuid",
+      "ticker": "PETR4",
+      "name": "Petrobras PN",
+      "sector": "Petróleo, Gás e Biocombustíveis",
+      "rank": 10
+    },
     "quantity": 200,
     "average_price": 6000,
     "current_price": 7500,
@@ -464,7 +589,7 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 {
   "data": {
     "current_patrimony": 1500000,
-    "yearly_dividends": 0,
+    "yearly_dividends": 350000,
     "stocks_invested": 500000
   }
 }
@@ -472,7 +597,7 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 
 - `current_patrimony`: sum of all Patrimony amounts for the latest month with data (MAX year/month with records for the wallet)
 - `stocks_invested`: sum of `Position.Invested` for the wallet
-- `yearly_dividends`: always `0` until the dividends epic is implemented
+- `yearly_dividends`: amount of the latest registered dividend year that is not in the future (the current year when present, otherwise the most recent past year; `0` when only future years or nothing is registered). No reference-year field is exposed
 
 - **Errors**:
   - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
@@ -487,10 +612,10 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 {
   "data": {
     "items": [
-      { "type": "stocks", "amount": 500000, "percentage": 33.33 },
-      { "type": "fixed_income", "amount": 500000, "percentage": 33.33 },
-      { "type": "emergency_reserve", "amount": 250000, "percentage": 16.67 },
-      { "type": "liquid_cash", "amount": 250000, "percentage": 16.67 }
+      { "type": "stocks", "amount": 500000, "percentage": 33 },
+      { "type": "fixed_income", "amount": 500000, "percentage": 33 },
+      { "type": "emergency_reserve", "amount": 250000, "percentage": 17 },
+      { "type": "liquid_cash", "amount": 250000, "percentage": 17 }
     ],
     "total": 1500000
   }
@@ -499,7 +624,7 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 
 - Uses only Patrimony from the latest month with data, grouped by `AssetType`
 - Returns the 5 categories without aggregation; categories with no balance are omitted
-- `percentage = (amount / total) × 100`
+- `percentage = round((amount / total) × 100)` as an integer (mathematical rounding, halves away from zero)
 - `total`: sum of the amounts of the returned items
 
 - **Errors**:
@@ -515,8 +640,8 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 {
   "data": {
     "items": [
-      { "rank": 3, "amount": 300000, "percentage": 60.0 },
-      { "rank": 4, "amount": 200000, "percentage": 40.0 }
+      { "rank": 3, "amount": 300000, "percentage": 60 },
+      { "rank": 4, "amount": 200000, "percentage": 40 }
     ],
     "total": 500000
   }
@@ -525,7 +650,7 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 
 - Uses `Position.Invested` grouped by `Stock.Rank` (1-5)
 - The service fetches all positions for the wallet, resolves the rank of each stock via batch lookup, and aggregates in memory
-- `percentage = (invested per rank / total invested) × 100`
+- `percentage = round((invested per rank / total invested) × 100)` as an integer (mathematical rounding, halves away from zero)
 - Ranks with no invested amount are omitted
 - `total`: sum of `Position.Invested` for the wallet
 
@@ -591,14 +716,18 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 ```json
 {
   "data": {
-    "items": []
+    "items": [
+      { "year": 2024, "amount": 150000 },
+      { "year": 2025, "amount": 250000 },
+      { "year": 2026, "amount": 350000 }
+    ]
   }
 }
 ```
 
-- Returns the yearly dividends history for the wallet
-- Currently returns a static empty list until the dividends epic is implemented
-- The frontend can already mount the (empty) chart without breaking
+- Returns the full yearly dividends history for the wallet
+- Each item contains only `year` and `amount` (no `id`), ordered by `year` ascending, with no year-window limit
+- A wallet without dividends returns `items: []`
 
 - **Errors**:
   - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist

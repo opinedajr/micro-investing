@@ -1,6 +1,6 @@
 include .env
 
-.PHONY: help setup dev dev-up dev-down build test clean docker docker-down install-deps web-build web-dev web-test run
+.PHONY: help setup dev dev-up dev-down build test clean docker docker-down install-deps web-build web-dev web-test run sync-prices
 
 BINARY_NAME=micro-investing
 DOCKER_COMPOSE_FILE=docker-compose.yml
@@ -60,6 +60,11 @@ build: web-build ## Compila a aplicação (inclui o frontend)
 	@echo "🔨 Compilando aplicação..."
 	@go build -ldflags='-s -w' -o bin/$(BINARY_NAME) cmd/api/main.go
 	@echo "✅ Binário criado: bin/$(BINARY_NAME)"
+
+build-sync: ## Compila o atualizador de cotações para execução em background/cron
+	@echo "🔨 Compilando o atualizador de cotações..."
+	@go build -ldflags='-s -w' -o bin/sync-prices cmd/quotation/main.go
+	@echo "✅ Binário criado: bin/sync-prices"
 
 # Executar aplicação compilada
 run: build ## Executa a aplicação compilada
@@ -125,3 +130,8 @@ seed-stock:
 	@echo "🌱 Executando seed de stocks..."
 	@go run cmd/seed/main.go $(ARGS)
 	@echo "✅ Seed de stocks concluído"
+
+sync-prices:
+	@echo "📈 Sincronizando preços atuais via Brapi..."
+	@go run ./cmd/quotation $(ARGS)
+	@echo "✅ Sincronização de preços concluída"

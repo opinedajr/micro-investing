@@ -88,9 +88,15 @@ DB_HOST=
 DB_PORT=
 DB_USER=
 DB_PASSWORD=
+BRAPI_API_KEY=
+BRAPI_BASE_URL=https://brapi.dev
+BRAPI_TIMEOUT=15s
+BRAPI_BATCH_SIZE=1
 ```
 
 Supported drivers: `postgres` | `mysql` | `sqlite`. When `DB_DRIVER=sqlite`, only `DB_NAME` is required and it is treated as the database file path (e.g. `DB_NAME=data/app.db`).
+
+Brapi variables configure the price sync integration (`internal/infrastructure/brapi`). `BRAPI_API_KEY` is only required by the quotation sync job — the API server starts without it; the client construction fails fast when the key is missing. Defaults: base URL `https://brapi.dev`, request timeout `15s`, batch size `1` (free plan allows 1 ticker per request).
 
 ### 3. Install Dependencies
 ```bash
@@ -139,7 +145,7 @@ Builds the SPA into `web/dist` and copies it to `internal/webui/dist`, which is 
 ```bash
 make web-test
 ```
-Runs the Vitest suites: `formatCurrencyBRL` utility, the `useDashboardStore` Pinia store (fetch actions mapping API payloads into state), the `Dashboard.vue` orchestration (KPI cards rendering store values as BRL-formatted currency), the `DashboardCompositionCharts.vue` component (allocation doughnut, half-circle risk gauge and the reserved dividends empty state) and the `DashboardEvolution.vue` component (patrimony evolution bar chart, per-category mini charts and the interactive year/quarter filters that refetch the evolution data). PrimeVue's `<Chart>` is mocked globally (`web/vitest.setup.ts`) so tests assert component behavior without touching Chart.js internals.
+Runs the Vitest suites: `formatCurrencyBRL` utility, the `useDashboardStore` Pinia store (fetch actions mapping API payloads into state), the `Dashboard.vue` orchestration (KPI cards rendering store values as BRL-formatted currency), the `DashboardCompositionCharts.vue` component (allocation doughnut, the dividends yearly bar chart fed by `/dashboard/dividends` with an empty state when the wallet has no dividends, and the risk half-circle gauge with one arc per rank returned by `/dashboard/risk`) and the `DashboardEvolution.vue` component (patrimony evolution bar chart, per-category mini charts and the interactive year/quarter filters that refetch the evolution data). PrimeVue's `<Chart>` is mocked globally (`web/vitest.setup.ts`) so tests assert component behavior without touching Chart.js internals.
 
 ## 🗄 Database Migrations
 
@@ -194,6 +200,12 @@ Commands:
 - **URL**: `DELETE /api/v1/wallets/:id/assets/:id`
 - **Description**: Manage individual asset launches (investments) per wallet. Each asset records a date, description, type and amount (integer cents). Creating, updating or deleting an asset automatically recalculates the corresponding patrimony record via `SUM(amount)` within the same transaction. Listing supports optional filters: `type`, `start_date` (inclusive, `YYYY-MM-DD`) and `end_date` (inclusive, `YYYY-MM-DD`). When both dates are provided, `start_date <= end_date` is enforced.
 
+### Dividends
+- **URL**: `GET /api/v1/wallets/:id/dividends?year=`
+- **URL**: `POST /api/v1/wallets/:id/dividends`
+- **URL**: `PUT /api/v1/wallets/:id/dividends/:dividendId`
+- **Description**: Register, edit and list the yearly total dividends received per wallet. Each record holds a `year` (between 1900 and the current year + 1) and an `amount` (integer cents, greater than zero). Only one dividend record per wallet and year is allowed — duplicating a year returns `409 Conflict` with `DIVIDEND_ALREADY_EXISTS`. The update endpoint replaces `year` and `amount` (identified by the dividend UUID) with the same validation rules; an unknown id returns `404 Not Found` with `DIVIDEND_NOT_FOUND` and moving a record to a year already taken by another dividend of the same wallet returns `409 Conflict` with `DIVIDEND_ALREADY_EXISTS` (keeping the same year while changing the amount is allowed). There is no delete endpoint. Listing returns the wallet dividends ordered by `year DESC` as `{items: [{id, year, amount}]}`; the optional `year` filter returns an empty `items` list when there is no match. Validation failures return `400 Bad Request` with `VALIDATION_ERROR`.
+
 ### Stocks
 - **URL**: `GET /api/v1/stocks`
 - **URL**: `GET /api/v1/stocks/:ticker`
@@ -212,12 +224,18 @@ Commands:
 - **URL**: `GET /api/v1/wallets/:id/dashboard/risk`
 - **URL**: `GET /api/v1/wallets/:id/dashboard/evolution?year=&quarter=`
 - **URL**: `GET /api/v1/wallets/:id/dashboard/dividends`
-- **Description**: Returns aggregated dashboard metrics for the wallet. `current_patrimony` is the sum of all Patrimony amounts for the latest month with data. `stocks_invested` is the sum of Position.Invested for the wallet. `yearly_dividends` is always `0` until the dividends epic is implemented. The allocation endpoint returns the percentage distribution by asset type for the latest month with data; categories with no balance are omitted. The risk endpoint returns the percentage distribution of invested capital by stock rank (1-5), omitting ranks with no invested amount. The evolution endpoint returns monthly patrimony evolution with total and breakdown by `fixed_income`, `stocks` and `emergency_reserve`; months without data are filled via carry forward, and missing categories within a partial month are also carried forward per category. Without filters it returns the last 12 rolling months; with `year` it returns the full year; with `year` and `quarter` it returns the 3 months of that quarter. `year` must be greater than zero, `quarter` must be between 1 and 4 and requires `year`. The dividends endpoint returns the yearly dividends history as a static empty list until the dividends epic is implemented. All monetary values are integer cents.
+- **Description**: Returns aggregated dashboard metrics for the wallet. `current_patrimony` is the sum of all Patrimony amounts for the latest month with data. `stocks_invested` is the sum of Position.Invested for the wallet. `yearly_dividends` is the amount of the latest registered dividend year that is not in the future (the current year when present, otherwise the most recent past year; `0` when only future years or nothing is registered). The allocation endpoint returns the percentage distribution by asset type for the latest month with data; categories with no balance are omitted. The risk endpoint returns the percentage distribution of invested capital by stock rank (1-5), omitting ranks with no invested amount. Percentages in both endpoints are rounded to integers. The evolution endpoint returns monthly patrimony evolution with total and breakdown by `fixed_income`, `stocks` and `emergency_reserve`; months without data are filled via carry forward, and missing categories within a partial month are also carried forward per category. Without filters it returns the last 12 rolling months; with `year` it returns the full year; with `year` and `quarter` it returns the 3 months of that quarter. `year` must be greater than zero, `quarter` must be between 1 and 4 and requires `year`. The dividends endpoint returns the full yearly dividends history of the wallet as `items: [{year, amount}]` (without `id`), ordered by `year` ascending and with no year-window limit; a wallet without dividends returns `items: []`. All monetary values are integer cents.
 
 ### Seed
 - **Command**: `make seed-stock`
 - **Description**: Idempotently seeds the B3 blue-chip catalog into the `stocks` table. Repeating the command does not duplicate or overwrite manual edits.
 - **Force overwrite**: `make seed-stock ARGS="--force"`
+
+### Quotation Sync
+- **Command**: `make sync-prices`
+- **Description**: Syncs current stock prices from the Brapi API into the `stocks_current_prices` cache and then re-consolidates the positions of every wallet of the default user, so balance, variation and the dashboard reflect the new prices immediately. Idempotent and safe to run repeatedly (e.g. via crontab).
+- **Ticker filter**: `make sync-prices ARGS="-tickers=PETR4,VALE3"` (default: all registered stocks; unknown tickers fail fast)
+- **Exit codes**: `0` on success or partial success (skipped/failed tickers are summarized in the logs); `1` on total failure, including a missing `BRAPI_API_KEY`.
 
 For detailed request/response schemas see `docs/api.md`.
 
@@ -240,6 +258,8 @@ For detailed request/response schemas see `docs/api.md`.
 | `make migrate-create name=<name>` | Create new migration |
 | `make seed-stock` | Seed the B3 stocks catalog (idempotent) |
 | `make seed-stock ARGS="--force"` | Force-overwrite existing stocks catalog |
+| `make sync-prices` | Sync current prices from Brapi and re-consolidate wallet positions |
+| `make sync-prices ARGS="-tickers=PETR4,VALE3"` | Sync only the given tickers |
 | `make clean` | Remove binaries and coverage files |
 
 ---
@@ -320,15 +340,20 @@ make build
 
 **2. Copy the new binary to the VPS:**
 ```bash
-scp bin/micro-investing root@<vps>:/opt/micro-investing/micro-investing
+scp bin/micro-investing root@<vps>:/tmp/
 ```
 
-**3. Run the update script on the VPS:**
+**3. On the VPS — replace the binary and restart:**
 ```bash
+sudo install -m 0755 -o www-data -g www-data /tmp/micro-investing /opt/micro-investing/micro-investing
 sudo bash /tmp/update.sh
 ```
 
-The update script fixes permissions and restarts the service — no need to touch systemd or `.env`.
+> Copy via `/tmp` + `install` (never `scp` straight into `/opt/micro-investing/`): overwriting the running binary in place can fail with *"text file busy"*, while `install` replaces it atomically. If `/tmp/update.sh` no longer exists (e.g. after a reboot), re-copy it with `scp scripts/update.sh root@<vps>:/tmp/`.
+
+### Changing the Port
+
+Edit `SERVER_PORT` in `/opt/micro-investing/.env` and restart — the systemd unit re-reads `EnvironmentFile` on every start (`sudo systemctl restart micro-investing`). Remember to open/close the port in the firewall accordingly.
 
 ### Service Management
 

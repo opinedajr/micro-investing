@@ -46,7 +46,7 @@ func (s *E2ESuite) TestDashboard_Risk_Success() {
 	s.Require().Len(resp.Data.Items, 3)
 
 	amountByRank := map[int8]int64{}
-	percentageByRank := map[int8]float64{}
+	percentageByRank := map[int8]int{}
 	for _, item := range resp.Data.Items {
 		amountByRank[item.Rank] = item.Amount
 		percentageByRank[item.Rank] = item.Percentage
@@ -55,9 +55,9 @@ func (s *E2ESuite) TestDashboard_Risk_Success() {
 	s.Require().Equal(int64(200000), amountByRank[10])
 	s.Require().Equal(int64(100000), amountByRank[7])
 	s.Require().Equal(int64(100000), amountByRank[5])
-	s.InDelta(50.0, percentageByRank[10], 0.01)
-	s.InDelta(25.0, percentageByRank[7], 0.01)
-	s.InDelta(25.0, percentageByRank[5], 0.01)
+	s.Require().Equal(50, percentageByRank[10])
+	s.Require().Equal(25, percentageByRank[7])
+	s.Require().Equal(25, percentageByRank[5])
 }
 
 func (s *E2ESuite) TestDashboard_Risk_EmptyWallet() {
@@ -93,7 +93,7 @@ func (s *E2ESuite) TestDashboard_Risk_SinglePosition() {
 	item := resp.Data.Items[0]
 	s.Require().Equal(int8(10), item.Rank)
 	s.Require().Equal(int64(50000), item.Amount)
-	s.InDelta(100.0, item.Percentage, 0.01)
+	s.Require().Equal(100, item.Percentage)
 }
 
 func (s *E2ESuite) TestDashboard_Risk_WalletNotFound() {
@@ -132,7 +132,7 @@ func (s *E2ESuite) TestDashboard_Risk_IgnoresOrphanPositions() {
 	item := resp.Data.Items[0]
 	s.Require().Equal(int8(10), item.Rank)
 	s.Require().Equal(int64(50000), item.Amount)
-	s.InDelta(100.0, item.Percentage, 0.01)
+	s.Require().Equal(100, item.Percentage)
 }
 
 func (s *E2ESuite) TestDashboard_Allocation_Regression() {
@@ -168,7 +168,7 @@ func (s *E2ESuite) TestDashboard_Allocation_Regression() {
 	s.Require().Len(resp.Data.Items, 3)
 
 	amountByType := map[string]int64{}
-	percentageByType := map[string]float64{}
+	percentageByType := map[string]int{}
 	for _, item := range resp.Data.Items {
 		amountByType[item.Type] = item.Amount
 		percentageByType[item.Type] = item.Percentage
@@ -177,7 +177,7 @@ func (s *E2ESuite) TestDashboard_Allocation_Regression() {
 	s.Require().Equal(int64(200000), amountByType["stocks"])
 	s.Require().Equal(int64(150000), amountByType["fixed_income"])
 	s.Require().Equal(int64(50000), amountByType["emergency_reserve"])
-	s.InDelta(50.0, percentageByType["stocks"], 0.01)
-	s.InDelta(37.5, percentageByType["fixed_income"], 0.01)
-	s.InDelta(12.5, percentageByType["emergency_reserve"], 0.01)
+	s.Require().Equal(50, percentageByType["stocks"])
+	s.Require().Equal(38, percentageByType["fixed_income"])
+	s.Require().Equal(13, percentageByType["emergency_reserve"])
 }

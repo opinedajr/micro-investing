@@ -22,6 +22,7 @@ import (
 
 	"github.com/opinedajr/micro-investing/internal/dashboard"
 	"github.com/opinedajr/micro-investing/internal/di"
+	"github.com/opinedajr/micro-investing/internal/dividends"
 	"github.com/opinedajr/micro-investing/internal/healthcheck"
 	"github.com/opinedajr/micro-investing/internal/patrimony"
 	"github.com/opinedajr/micro-investing/internal/position"
@@ -33,12 +34,24 @@ type E2ESuite struct {
 	suite.Suite
 	server    *httptest.Server
 	expect    *httpexpect.Expect
+	transport *http.Transport
 	db        *sql.DB
 	container *di.Container
 }
 
 func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m, goleak.IgnoreTopFunction("net/http.(*Server).Serve"))
+	// INV-14: os loops persistConn da stdlib net/http terminam de forma
+	// assincrona apos o fechamento do body da resposta, mesmo com
+	// DisableKeepAlives e CloseIdleConnections no teardown (Opcao B testada e
+	// insuficiente: a saida dos loops corrida com o goleak). Como o ciclo de
+	// vida dessas goroutines e interno a stdlib e fora do controle da suite,
+	// optou-se por ignora-las no goleak (Opcao A) sem enfraquecer as
+	// verificacoes das demais goroutines.
+	goleak.VerifyTestMain(m,
+		goleak.IgnoreTopFunction("net/http.(*Server).Serve"),
+		goleak.IgnoreTopFunction("net/http.(*persistConn).readLoop"),
+		goleak.IgnoreTopFunction("net/http.(*persistConn).writeLoop"),
+	)
 }
 
 func TestE2ESuite(t *testing.T) {
@@ -86,8 +99,17 @@ func (s *E2ESuite) SetupSuite() {
 	stock.RegisterRoutes(v1, s.container.StockHandler())
 	position.RegisterRoutes(v1, s.container.PositionHandler(), s.container.WalletService())
 	dashboard.RegisterRoutes(v1, s.container.DashboardHandler(), s.container.WalletService())
+	dividends.RegisterRoutes(v1, s.container.DividendHandler(), s.container.WalletService())
 
 	s.server = httptest.NewServer(r)
+
+	// INV-14: mesmo com DisableKeepAlives, os loops persistConn da stdlib
+	// terminam de forma assincrona apos o fechamento do body; o Transport e
+	// fechado explicitamente no TearDownSuite via CloseIdleConnections para
+	// reduzir as conexoes remanescentes antes do teardown do goleak.
+	s.transport = &http.Transport{
+		DisableKeepAlives: true,
+	}
 
 	s.expect = httpexpect.WithConfig(httpexpect.Config{
 		BaseURL:  s.server.URL,
@@ -96,14 +118,15 @@ func (s *E2ESuite) SetupSuite() {
 			httpexpect.NewCompactPrinter(s.T()),
 		},
 		Client: &http.Client{
-			Transport: &http.Transport{
-				DisableKeepAlives: true,
-			},
+			Transport: s.transport,
 		},
 	})
 }
 
 func (s *E2ESuite) TearDownSuite() {
+	if s.transport != nil {
+		s.transport.CloseIdleConnections()
+	}
 	s.server.Close()
 	if s.db != nil {
 		s.db.Close()
@@ -115,6 +138,8 @@ func (s *E2ESuite) SetupTest() {
 	s.Require().NoError(err, "falha ao limpar tabela assets")
 	err = s.container.DB().Exec("DELETE FROM patrimonies;").Error
 	s.Require().NoError(err, "falha ao limpar tabela patrimonies")
+	err = s.container.DB().Exec("DELETE FROM dividends;").Error
+	s.Require().NoError(err, "falha ao limpar tabela dividends")
 	err = s.container.DB().Exec("DELETE FROM wallets;").Error
 	s.Require().NoError(err, "falha ao limpar tabela wallets")
 	err = s.container.DB().Exec("DELETE FROM positions;").Error

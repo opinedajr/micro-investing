@@ -90,7 +90,7 @@ func TestRegisterRoutes(t *testing.T) {
 			riskFunc: func(ctx context.Context, walletID string) (*RiskOutput, error) {
 				return &RiskOutput{
 					Items: []RiskItem{
-						{Rank: 3, Amount: 300000, Percentage: 60.0},
+						{Rank: 3, Amount: 300000, Percentage: 60},
 					},
 					Total: 300000,
 				}, nil

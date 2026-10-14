@@ -51,6 +51,15 @@ export interface DashboardEvolution {
   by_category: EvolutionByCategory
 }
 
+export interface DividendItem {
+  year: number
+  amount: number
+}
+
+export interface DashboardDividends {
+  items: DividendItem[]
+}
+
 const API_BASE_URL = '/api/v1'
 
 async function request<T>(path: string): Promise<T> {
@@ -80,6 +89,9 @@ export const dashboardApi = {
   },
   risk(walletId: string): Promise<DashboardRisk> {
     return request<DashboardRisk>(`/wallets/${walletId}/dashboard/risk`)
+  },
+  dividends(walletId: string): Promise<DashboardDividends> {
+    return request<DashboardDividends>(`/wallets/${walletId}/dashboard/dividends`)
   },
   evolution(walletId: string, year?: number, quarter?: number): Promise<DashboardEvolution> {
     const params = new URLSearchParams()

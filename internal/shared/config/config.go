@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/caarlos0/env/v10"
 	"github.com/joho/godotenv"
@@ -11,6 +12,7 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	Logging  LoggingConfig
+	Brapi    BrapiConfig
 }
 
 type ServerConfig struct {
@@ -28,6 +30,13 @@ type DatabaseConfig struct {
 
 type LoggingConfig struct {
 	Level string `env:"LOG_LEVEL" envDefault:"error"`
+}
+
+type BrapiConfig struct {
+	APIKey    string        `env:"BRAPI_API_KEY"`
+	BaseURL   string        `env:"BRAPI_BASE_URL" envDefault:"https://brapi.dev"`
+	Timeout   time.Duration `env:"BRAPI_TIMEOUT" envDefault:"15s"`
+	BatchSize int           `env:"BRAPI_BATCH_SIZE" envDefault:"1"`
 }
 
 func Load() (*Config, error) {

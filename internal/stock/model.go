@@ -24,9 +24,3 @@ func (s *Stock) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
-
-type CurrentPrice struct {
-	StockID   string    `json:"stock_id" gorm:"primaryKey"`
-	Price     int64     `json:"price"`
-	UpdatedAt time.Time `json:"updated_at"`
-}

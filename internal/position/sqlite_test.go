@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/opinedajr/micro-investing/internal/infrastructure/database"
+	"github.com/opinedajr/micro-investing/internal/quotation"
 	"github.com/opinedajr/micro-investing/internal/stock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,7 @@ import (
 func setupSQLiteRepository(t *testing.T) (*SQLiteRepository, context.Context) {
 	gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
 	require.NoError(t, err)
-	require.NoError(t, gormDB.AutoMigrate(&Position{}, &stock.Stock{}, &stock.CurrentPrice{}))
+	require.NoError(t, gormDB.AutoMigrate(&Position{}, &stock.Stock{}, &quotation.CurrentPrice{}))
 	return NewSQLiteRepository(gormDB), context.Background()
 }
 
@@ -107,6 +108,20 @@ func TestSQLiteRepository_FindByFilter(t *testing.T) {
 		require.Len(t, positions, 2)
 		assert.Equal(t, "s2", positions[0].StockID)
 		assert.Equal(t, "s1", positions[1].StockID)
+	})
+
+	t.Run("success - includes orphan position with missing stock", func(t *testing.T) {
+		repo, ctx := setupSQLiteRepository(t)
+		createStock(t, repo, ctx, "s1", "PETR4", 10)
+		require.NoError(t, repo.Create(ctx, &Position{WalletID: "wallet-a", StockID: "s1", Quantity: 10, AveragePrice: 1000, Balance: 5000, Invested: 10000}))
+		require.NoError(t, repo.Create(ctx, &Position{WalletID: "wallet-a", StockID: "orphan-stock", Quantity: 10, AveragePrice: 1000, Balance: 1000, Invested: 10000}))
+
+		positions, err := repo.FindByFilter(ctx, PositionFilter{WalletID: "wallet-a"})
+
+		assert.NoError(t, err)
+		require.Len(t, positions, 2)
+		stockIDs := []string{positions[0].StockID, positions[1].StockID}
+		assert.Contains(t, stockIDs, "orphan-stock")
 	})
 
 	t.Run("success - filters by ticker partial case-insensitive", func(t *testing.T) {
