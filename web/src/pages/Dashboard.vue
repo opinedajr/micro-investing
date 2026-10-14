@@ -9,7 +9,7 @@ import { walletApi } from '@/lib/api'
 import { useDashboardStore } from '@/stores/dashboard'
 
 const store = useDashboardStore()
-const { summary, allocation, risk, evolution } = storeToRefs(store)
+const { summary, allocation, risk, dividends, evolution } = storeToRefs(store)
 
 const walletId = ref<string | null>(null)
 const selectedYear = ref<number | null>(null)
@@ -61,7 +61,7 @@ function onQuarterChange(value: number | null) {
 
     <div class="dashboard__grid">
       <DashboardKpiCards :summary="summary" />
-      <DashboardCompositionCharts :allocation="allocation" :risk="risk" />
+      <DashboardCompositionCharts :allocation="allocation" :risk="risk" :dividends="dividends" />
       <DashboardEvolution
         :evolution="evolution"
         :year="selectedYear"
