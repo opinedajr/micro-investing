@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import {
   dashboardApi,
   type DashboardAllocation,
+  type DashboardDividends,
   type DashboardEvolution,
   type DashboardRisk,
   type DashboardSummary,
@@ -12,6 +13,7 @@ interface DashboardState {
   summary: DashboardSummary | null
   allocation: DashboardAllocation | null
   risk: DashboardRisk | null
+  dividends: DashboardDividends | null
   evolution: DashboardEvolution | null
   loading: boolean
   error: string | null
@@ -22,6 +24,7 @@ export const useDashboardStore = defineStore('dashboard', {
     summary: null,
     allocation: null,
     risk: null,
+    dividends: null,
     evolution: null,
     loading: false,
     error: null,
@@ -31,14 +34,16 @@ export const useDashboardStore = defineStore('dashboard', {
       this.loading = true
       this.error = null
       try {
-        const [summary, allocation, risk] = await Promise.all([
+        const [summary, allocation, risk, dividends] = await Promise.all([
           dashboardApi.summary(walletId),
           dashboardApi.allocation(walletId),
           dashboardApi.risk(walletId),
+          dashboardApi.dividends(walletId),
         ])
         this.summary = summary
         this.allocation = allocation
         this.risk = risk
+        this.dividends = dividends
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Unexpected error'
       } finally {
