@@ -229,7 +229,7 @@ func (c *Container) PositionHandler() *position.Handler {
 
 func (c *Container) DashboardService() dashboard.Service {
 	if c.services.dashboardService == nil {
-		c.services.dashboardService = dashboard.NewService(c.PatrimonyRepository(), c.PositionRepository(), c.StockRepository())
+		c.services.dashboardService = dashboard.NewService(c.PatrimonyRepository(), c.PositionRepository(), c.StockRepository(), c.DividendRepository())
 	}
 	return c.services.dashboardService
 }

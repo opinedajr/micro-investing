@@ -589,7 +589,7 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 {
   "data": {
     "current_patrimony": 1500000,
-    "yearly_dividends": 0,
+    "yearly_dividends": 350000,
     "stocks_invested": 500000
   }
 }
@@ -597,7 +597,7 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 
 - `current_patrimony`: sum of all Patrimony amounts for the latest month with data (MAX year/month with records for the wallet)
 - `stocks_invested`: sum of `Position.Invested` for the wallet
-- `yearly_dividends`: always `0` until the dividends epic is implemented
+- `yearly_dividends`: amount of the latest registered dividend year that is not in the future (the current year when present, otherwise the most recent past year; `0` when only future years or nothing is registered). No reference-year field is exposed
 
 - **Errors**:
   - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
@@ -716,14 +716,18 @@ Read-only aggregated dashboard metrics per wallet. All monetary values are integ
 ```json
 {
   "data": {
-    "items": []
+    "items": [
+      { "year": 2024, "amount": 150000 },
+      { "year": 2025, "amount": 250000 },
+      { "year": 2026, "amount": 350000 }
+    ]
   }
 }
 ```
 
-- Returns the yearly dividends history for the wallet
-- Currently returns a static empty list until the dividends epic is implemented
-- The frontend can already mount the (empty) chart without breaking
+- Returns the full yearly dividends history for the wallet
+- Each item contains only `year` and `amount` (no `id`), ordered by `year` ascending, with no year-window limit
+- A wallet without dividends returns `items: []`
 
 - **Errors**:
   - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
