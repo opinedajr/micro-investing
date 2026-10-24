@@ -574,6 +574,17 @@ Behavior: `average_price` is overwritten by the input value (snapshot, not weigh
   - `422 Unprocessable Entity` (`VALIDATION_ERROR`): missing/invalid fields (`quantity` and `average_price` must be >= 1)
   - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
 
+### Delete Position
+- **URL**: `DELETE /api/v1/wallets/:id/positions/:positionId`
+- **Response**: `204 No Content` (empty body)
+
+Behavior: removes the position and, in the same transaction, re-consolidates the wallet via `ConsolidateByWallet`, redistributing `portfolio_percent` and the derived fields across the remaining positions. Deleting the last position of a wallet succeeds (`SUM(invested)` becomes 0, no division by zero). A failure during consolidation rolls back the whole transaction, so the position is never deleted without re-consolidation.
+
+- **Errors**:
+  - `404 Not Found` (`WALLET_NOT_FOUND`): wallet `:id` does not exist
+  - `404 Not Found` (`POSITION_NOT_FOUND`): position `:positionId` not found or belongs to another wallet
+  - `500 Internal Server Error` (`INTERNAL_ERROR`): unexpected error
+
 ---
 
 ## Dashboard
