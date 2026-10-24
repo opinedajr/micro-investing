@@ -24,7 +24,7 @@ func (s *SPAHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if path != "/" {
 		if f, err := s.root.Open(path); err == nil {
-			f.Close()
+			_ = f.Close()
 			if strings.HasPrefix(path, "/assets/") {
 				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 			}
