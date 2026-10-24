@@ -5,6 +5,7 @@ import "context"
 type Repository interface {
 	Create(ctx context.Context, position *Position) error
 	Update(ctx context.Context, position *Position) error
+	Delete(ctx context.Context, id string) error
 	FindByID(ctx context.Context, id string) (*Position, error)
 	FindByFilter(ctx context.Context, filter PositionFilter) ([]Position, error)
 	FindByWalletAndStockID(ctx context.Context, walletID string, stockID string) (*Position, error)
