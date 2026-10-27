@@ -10,6 +10,7 @@ import (
 type mockPositionRepository struct {
 	createFunc                 func(ctx context.Context, position *Position) error
 	updateFunc                 func(ctx context.Context, position *Position) error
+	deleteFunc                 func(ctx context.Context, id string) error
 	findByIDFunc               func(ctx context.Context, id string) (*Position, error)
 	findByFilterFunc           func(ctx context.Context, filter PositionFilter) ([]Position, error)
 	findByWalletAndStockIDFunc func(ctx context.Context, walletID string, stockID string) (*Position, error)
@@ -28,6 +29,13 @@ func (m *mockPositionRepository) Create(ctx context.Context, position *Position)
 func (m *mockPositionRepository) Update(ctx context.Context, position *Position) error {
 	if m.updateFunc != nil {
 		return m.updateFunc(ctx, position)
+	}
+	return nil
+}
+
+func (m *mockPositionRepository) Delete(ctx context.Context, id string) error {
+	if m.deleteFunc != nil {
+		return m.deleteFunc(ctx, id)
 	}
 	return nil
 }

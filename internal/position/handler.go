@@ -132,6 +132,18 @@ func (h *Handler) Update(c *gin.Context) {
 	})
 }
 
+func (h *Handler) Delete(c *gin.Context) {
+	walletID := c.Param("id")
+	id := c.Param("positionId")
+
+	if err := h.service.Delete(c.Request.Context(), walletID, id); err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.AbortWithStatus(http.StatusNoContent)
+}
+
 func (h *Handler) handleServiceError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrPositionNotFound):

@@ -551,6 +551,80 @@ func TestHandler_Find(t *testing.T) {
 	})
 }
 
+func TestHandler_Delete(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("success - returns 204 without body", func(t *testing.T) {
+		var calledWithWalletID, calledWithID string
+		mockSvc := &mockService{
+			deleteFunc: func(ctx context.Context, walletID string, id string) error {
+				calledWithWalletID = walletID
+				calledWithID = id
+				return nil
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("DELETE", "/api/v1/wallets/wallet-id/positions/p1", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}, {Key: "positionId", Value: "p1"}}
+
+		handler.Delete(c)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.Empty(t, w.Body.Bytes())
+		assert.Equal(t, "wallet-id", calledWithWalletID)
+		assert.Equal(t, "p1", calledWithID)
+	})
+
+	t.Run("error - returns 404 when position not found", func(t *testing.T) {
+		mockSvc := &mockService{
+			deleteFunc: func(ctx context.Context, walletID string, id string) error {
+				return ErrPositionNotFound
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("DELETE", "/api/v1/wallets/wallet-id/positions/missing", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}, {Key: "positionId", Value: "missing"}}
+
+		handler.Delete(c)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "POSITION_NOT_FOUND", response.Error.Code)
+	})
+
+	t.Run("error - returns 500 for internal server error", func(t *testing.T) {
+		mockSvc := &mockService{
+			deleteFunc: func(ctx context.Context, walletID string, id string) error {
+				return errors.New("database error")
+			},
+		}
+		handler := NewHandler(mockSvc)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("DELETE", "/api/v1/wallets/wallet-id/positions/p1", nil)
+		c.Params = []gin.Param{{Key: "id", Value: "wallet-id"}, {Key: "positionId", Value: "p1"}}
+
+		handler.Delete(c)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		var response api.Response[interface{}]
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, "INTERNAL_ERROR", response.Error.Code)
+	})
+}
+
 func TestHandler_buildValidationDetails(t *testing.T) {
 	v := validator.New()
 	type input struct {

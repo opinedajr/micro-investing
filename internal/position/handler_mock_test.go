@@ -11,6 +11,7 @@ type mockService struct {
 	listFunc                func(ctx context.Context, filter PositionFilter) ([]PositionOutput, error)
 	findFunc                func(ctx context.Context, walletID string, id string) (*PositionOutput, error)
 	consolidateByWalletFunc func(ctx context.Context, walletID string) error
+	deleteFunc              func(ctx context.Context, walletID string, id string) error
 }
 
 func (m *mockService) Create(ctx context.Context, input CreatePositionInput) (*PositionOutput, error) {
@@ -44,6 +45,13 @@ func (m *mockService) Find(ctx context.Context, walletID string, id string) (*Po
 func (m *mockService) ConsolidateByWallet(ctx context.Context, walletID string) error {
 	if m.consolidateByWalletFunc != nil {
 		return m.consolidateByWalletFunc(ctx, walletID)
+	}
+	return errors.New("not implemented")
+}
+
+func (m *mockService) Delete(ctx context.Context, walletID string, id string) error {
+	if m.deleteFunc != nil {
+		return m.deleteFunc(ctx, walletID, id)
 	}
 	return errors.New("not implemented")
 }

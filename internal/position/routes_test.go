@@ -171,6 +171,30 @@ func TestRegisterRoutes(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "p1", response.Data.ID)
 	})
+
+	t.Run("success - registers position delete route under /api/v1/wallets/:id/positions/:positionId", func(t *testing.T) {
+		mockSvc := &mockService{
+			deleteFunc: func(ctx context.Context, walletID string, id string) error {
+				assert.Equal(t, "wallet-id", walletID)
+				assert.Equal(t, "p1", id)
+				return nil
+			},
+		}
+
+		handler := NewHandler(mockSvc)
+		walletService := &mockWalletServiceForRoutes{}
+
+		r := gin.New()
+		v1 := r.Group("/api/v1")
+		RegisterRoutes(v1, handler, walletService)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("DELETE", "/api/v1/wallets/wallet-id/positions/p1", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.Empty(t, w.Body.Bytes())
+	})
 }
 
 func TestPositionRoutes_StockSnapshotContract(t *testing.T) {

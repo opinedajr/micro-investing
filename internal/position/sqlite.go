@@ -33,6 +33,19 @@ func (r *SQLiteRepository) Update(ctx context.Context, position *Position) error
 	return r.txFromContext(ctx).Save(position).Error
 }
 
+func (r *SQLiteRepository) Delete(ctx context.Context, id string) error {
+	var position Position
+	err := r.txFromContext(ctx).Where("id = ?", id).First(&position).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("%w: %w", ErrPositionNotFound, err)
+		}
+		return err
+	}
+
+	return r.txFromContext(ctx).Delete(&position).Error
+}
+
 func (r *SQLiteRepository) FindByID(ctx context.Context, id string) (*Position, error) {
 	var position Position
 	err := r.txFromContext(ctx).Where("id = ?", id).First(&position).Error

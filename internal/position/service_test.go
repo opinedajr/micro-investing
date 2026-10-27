@@ -46,6 +46,14 @@ func (m *memoryPositionRepository) Update(ctx context.Context, position *Positio
 	return nil
 }
 
+func (m *memoryPositionRepository) Delete(ctx context.Context, id string) error {
+	if _, ok := m.positions[id]; !ok {
+		return ErrPositionNotFound
+	}
+	delete(m.positions, id)
+	return nil
+}
+
 func (m *memoryPositionRepository) FindByID(ctx context.Context, id string) (*Position, error) {
 	p, ok := m.positions[id]
 	if !ok {
@@ -483,6 +491,98 @@ func TestService_Update(t *testing.T) {
 			Quantity:     20,
 			AveragePrice: 2000,
 		})
+
+		assert.Error(t, err)
+	})
+}
+
+func TestService_Delete(t *testing.T) {
+	t.Run("success - deletes position and redistributes portfolio_percent of remaining positions", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{
+			ID: "p1", WalletID: "wallet-id", StockID: "s1", Quantity: 100, AveragePrice: 1000,
+		}
+		positionRepo.positions["p2"] = &Position{
+			ID: "p2", WalletID: "wallet-id", StockID: "s2", Quantity: 100, AveragePrice: 3000,
+		}
+		positionRepo.prices["s1"] = 1000
+		positionRepo.prices["s2"] = 3000
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		err := service.Delete(context.Background(), "wallet-id", "p1")
+
+		assert.NoError(t, err)
+		assert.NotContains(t, positionRepo.positions, "p1")
+		assert.InDelta(t, 100.0, positionRepo.positions["p2"].PortfolioPercent, 0.001)
+	})
+
+	t.Run("success - deletes last position of wallet without division by zero", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{
+			ID: "p1", WalletID: "wallet-id", StockID: "s1", Quantity: 100, AveragePrice: 1000, PortfolioPercent: 100,
+		}
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		err := service.Delete(context.Background(), "wallet-id", "p1")
+
+		assert.NoError(t, err)
+		assert.NotContains(t, positionRepo.positions, "p1")
+	})
+
+	t.Run("error - returns not found when position belongs to another wallet", func(t *testing.T) {
+		positionRepo := newMemoryPositionRepository()
+		positionRepo.positions["p1"] = &Position{
+			ID: "p1", WalletID: "other-wallet", StockID: "s1", Quantity: 10, AveragePrice: 1000,
+		}
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		err := service.Delete(context.Background(), "wallet-id", "p1")
+
+		assert.ErrorIs(t, err, ErrPositionNotFound)
+		assert.Contains(t, positionRepo.positions, "p1")
+	})
+
+	t.Run("error - returns not found when position does not exist", func(t *testing.T) {
+		service := NewService(newMemoryPositionRepository(), &mockStockRepository{}, noopLogger{})
+		err := service.Delete(context.Background(), "wallet-id", "missing-id")
+
+		assert.ErrorIs(t, err, ErrPositionNotFound)
+	})
+
+	t.Run("error - rolls back when consolidation fails", func(t *testing.T) {
+		var deletedID string
+		positionRepo := &mockPositionRepository{
+			findByIDFunc: func(ctx context.Context, id string) (*Position, error) {
+				return &Position{ID: id, WalletID: "wallet-id", StockID: "s1", Quantity: 10, AveragePrice: 1000}, nil
+			},
+			deleteFunc: func(ctx context.Context, id string) error {
+				deletedID = id
+				return nil
+			},
+			runInTransactionFunc: func(ctx context.Context, fn func(ctx context.Context) error) error {
+				return fn(ctx)
+			},
+			findByFilterFunc: func(ctx context.Context, filter PositionFilter) ([]Position, error) {
+				return nil, errors.New("database error")
+			},
+		}
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		err := service.Delete(context.Background(), "wallet-id", "p1")
+
+		assert.Error(t, err)
+		assert.Equal(t, "p1", deletedID)
+	})
+
+	t.Run("error - returns error when transaction fails", func(t *testing.T) {
+		positionRepo := &mockPositionRepository{
+			runInTransactionFunc: func(ctx context.Context, fn func(ctx context.Context) error) error {
+				return errors.New("transaction error")
+			},
+		}
+
+		service := NewService(positionRepo, &mockStockRepository{}, noopLogger{})
+		err := service.Delete(context.Background(), "wallet-id", "p1")
 
 		assert.Error(t, err)
 	})

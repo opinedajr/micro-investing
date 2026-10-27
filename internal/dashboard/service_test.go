@@ -70,6 +70,10 @@ func (m *mockPositionRepository) Update(ctx context.Context, p *position.Positio
 	return nil
 }
 
+func (m *mockPositionRepository) Delete(ctx context.Context, id string) error {
+	return nil
+}
+
 func (m *mockPositionRepository) FindByID(ctx context.Context, id string) (*position.Position, error) {
 	return nil, nil
 }

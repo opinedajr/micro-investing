@@ -302,3 +302,25 @@ func TestSQLiteRepository_Update(t *testing.T) {
 		assert.Equal(t, int64(10000), found.Invested)
 	})
 }
+
+func TestSQLiteRepository_Delete(t *testing.T) {
+	t.Run("success - deletes existing position", func(t *testing.T) {
+		repo, ctx := setupSQLiteRepository(t)
+		position := &Position{WalletID: "wallet-id", StockID: "stock-id", Quantity: 10, AveragePrice: 1000}
+		require.NoError(t, repo.Create(ctx, position))
+
+		err := repo.Delete(ctx, position.ID)
+
+		assert.NoError(t, err)
+		_, err = repo.FindByID(ctx, position.ID)
+		assert.ErrorIs(t, err, ErrPositionNotFound)
+	})
+
+	t.Run("error - returns not found for missing id", func(t *testing.T) {
+		repo, ctx := setupSQLiteRepository(t)
+
+		err := repo.Delete(ctx, "missing-id")
+
+		assert.ErrorIs(t, err, ErrPositionNotFound)
+	})
+}

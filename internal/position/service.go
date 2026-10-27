@@ -13,6 +13,7 @@ import (
 type Service interface {
 	Create(ctx context.Context, input CreatePositionInput) (*PositionOutput, error)
 	Update(ctx context.Context, input UpdatePositionInput) (*PositionOutput, error)
+	Delete(ctx context.Context, walletID string, id string) error
 	List(ctx context.Context, filter PositionFilter) ([]PositionOutput, error)
 	Find(ctx context.Context, walletID string, id string) (*PositionOutput, error)
 	ConsolidateByWallet(ctx context.Context, walletID string) error
@@ -157,6 +158,24 @@ func (s *positionService) Update(ctx context.Context, input UpdatePositionInput)
 	}
 
 	return s.toHydratedOutput(ctx, updated)
+}
+
+func (s *positionService) Delete(ctx context.Context, walletID string, id string) error {
+	return s.repo.RunInTransaction(ctx, func(txCtx context.Context) error {
+		position, err := s.repo.FindByID(txCtx, id)
+		if err != nil {
+			return err
+		}
+
+		if position.WalletID != walletID {
+			return ErrPositionNotFound
+		}
+
+		if err := s.repo.Delete(txCtx, id); err != nil {
+			return err
+		}
+		return s.consolidateInTransaction(txCtx, walletID)
+	})
 }
 
 func (s *positionService) ConsolidateByWallet(ctx context.Context, walletID string) error {
