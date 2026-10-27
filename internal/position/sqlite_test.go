@@ -2,6 +2,7 @@ package position
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/opinedajr/micro-investing/internal/infrastructure/database"
@@ -9,7 +10,16 @@ import (
 	"github.com/opinedajr/micro-investing/internal/stock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
+
+func captureExecutedQueries(t *testing.T, db *gorm.DB, queries *[]string) {
+	collect := func(tx *gorm.DB) {
+		*queries = append(*queries, tx.Statement.SQL.String())
+	}
+	require.NoError(t, db.Callback().Query().After("gorm:query").Register("test:capture_select", collect))
+	require.NoError(t, db.Callback().Delete().After("gorm:delete").Register("test:capture_delete", collect))
+}
 
 func setupSQLiteRepository(t *testing.T) (*SQLiteRepository, context.Context) {
 	gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
@@ -314,6 +324,26 @@ func TestSQLiteRepository_Delete(t *testing.T) {
 		assert.NoError(t, err)
 		_, err = repo.FindByID(ctx, position.ID)
 		assert.ErrorIs(t, err, ErrPositionNotFound)
+	})
+
+	t.Run("success - executes single delete query without prior select", func(t *testing.T) {
+		gormDB, err := database.NewMemoryDatabase(t).Connect(context.Background())
+		require.NoError(t, err)
+		require.NoError(t, gormDB.AutoMigrate(&Position{}, &stock.Stock{}, &quotation.CurrentPrice{}))
+		repo := NewSQLiteRepository(gormDB)
+		ctx := context.Background()
+
+		position := &Position{WalletID: "wallet-id", StockID: "stock-id", Quantity: 10, AveragePrice: 1000}
+		require.NoError(t, repo.Create(ctx, position))
+
+		var queries []string
+		captureExecutedQueries(t, gormDB, &queries)
+
+		require.NoError(t, repo.Delete(ctx, position.ID))
+
+		require.Len(t, queries, 1)
+		assert.Contains(t, strings.ToUpper(queries[0]), "DELETE")
+		assert.NotContains(t, strings.ToUpper(queries[0]), "SELECT")
 	})
 
 	t.Run("error - returns not found for missing id", func(t *testing.T) {
