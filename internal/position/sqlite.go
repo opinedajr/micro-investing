@@ -34,16 +34,18 @@ func (r *SQLiteRepository) Update(ctx context.Context, position *Position) error
 }
 
 func (r *SQLiteRepository) Delete(ctx context.Context, id string) error {
-	var position Position
-	err := r.txFromContext(ctx).Where("id = ?", id).First(&position).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("%w: %w", ErrPositionNotFound, err)
-		}
-		return err
+	result := r.txFromContext(ctx).
+		Where("id = ?", id).
+		Delete(&Position{})
+	if result.Error != nil {
+		return result.Error
 	}
 
-	return r.txFromContext(ctx).Delete(&position).Error
+	if result.RowsAffected == 0 {
+		return ErrPositionNotFound
+	}
+
+	return nil
 }
 
 func (r *SQLiteRepository) FindByID(ctx context.Context, id string) (*Position, error) {
